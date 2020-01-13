@@ -1,0 +1,92 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\begin{document}
+
+\section{Coordinate System}
+The Cartesian coordinate system has origin taken to be the lower left hand corner of the diagram.
+
+\section{Degrees of Freedom for a Layer}
+
+As defined, a layer has the attributes of phase, period, domain, and feature. The period is here synonymous with pitch. The phase is best reported as a phase fraction varying from 0 to 1. The start of the first feature $c$, the phase fraction $\phi$, and the period $p$ are related by
+
+$$ \phi = \bmod(c, p) \,.$$
+
+The domain restricts features on some $0 < x < L$. However, even for centers within the domain, for finite widths generally the domain will not contain the whole feature. Clipping can be used.
+
+Since the first feature is in the first period it follows
+
+$$c = \phi p \,. $$
+
+Quite often it is preferred to specify the starting location of a feature, which is related to a phase shift (provided the appropriate domain restriction has been imposed) as
+
+$$ x_0 = p (q + \phi) \,. $$
+
+where $q$ is the integral quotient of $c/p$.
+
+\section{Degrees of Freedom for a Feature}
+
+A feature may be having a shape and size. The resulting layer height depends on the shape and size of the feature, and shape and size are usually more than one parameter each--only regular polygons are defined by a single string parameter for shape (which is just a map to a number of vertices, hence the name $n$-gon) and a single size parameter (edge length). A feature may have any other aesthetic attributes such as color. For the purpose of layering it must have a base, though there is nothing stopping that base from being a point, such as an upside down triangle.
+
+A feature does not have position as an attribute--rather, in object oriented programming, it has a place method so that it can be put somewhere.
+
+A features spacing $s_f$ between neighboring features, which is equal to the feature padding, is related to the period of the layer it is in $p$ and the feature width $w_f$ by
+
+$$p = w_f + s_f \,.$$
+
+\section{Stacking and Drawing Order}
+It is natural to define a programmatic stack of layers (or an analogous object) which makes the device from bottom to top. Each layer which is stacked on top is one layer higher. In the case of layers which exist on the same level, the stack takes a list of such layers and places them on the same level.
+
+The drawing order may generally be different from the stack order. This is because it is much easier to define conformal layers as a result of magnifying the feature to which it conforms and then putting the original in the foreground, so only its area outside shows.
+
+\section{Conformal Layers}
+Each shape must have its own magnification definition. There are simply multiplication and addition operations corresponding to magnification and shifting. For example, if the thickness of a conformal layer $t$ on a square feature whose edge length is $x$ is to be made, then let $m$ be the yet unknown magnification and magnify the edge length with fixed origin in the lower left corner. The value of $m$ in terms of $t$ is found by the equation
+
+$$ m x = 2t + x\,, $$
+
+giving
+
+$$ m = 1 + 2 \frac tx \,.$$
+
+There is the elementary identity
+
+$$mx = 2 \frac{m-1}{2} x + x \,. $$
+
+That is, for the square whose coordinates $(0,0)$, $(x,x)$ are magnified to $(0,0)$, $(mx,mx)$, shifting the $x$-coordinate by $(m-1)/2$ makes the squares centered with respect to the horizontal position.
+
+The new coordinate of the lower left hand side is then 
+
+$$x_{ll}' = \frac{m-1}{2} x_{ll} \,. $$
+
+Because the height is not magnified to the same magnification, since it shouldn't peak out the bottom side,
+
+$$m_h = \frac{m+1}{2} \,. $$
+
+Alternatively, the magnified features outside of the layer bounding box may be clipped. A rectangle of width $w$ and height $h$ will, if its lower left corner is at $(0,0)$, have new lower left hand corner at $(1-m)/2 w, (1-m)/2 h)$.
+
+This magnification will not achieve uniform thickness, since the two relations
+
+\begin{align*}
+    mw = 2t + w \,,\\
+    mh = 2t + h \,,
+\end{align*}
+
+cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
+%it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
+
+The question of creating conformal layers on arbitrary polygons is not trivial but still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape.
+
+\section{Polygon Features}
+General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
+
+\section{Non-polygon features}
+Non-polygon features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. 
+
+\section{Clipping}
+A layer has a defining box. The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
+
+\section{Objects in the OOP}
+The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items
+
+\end{document}
