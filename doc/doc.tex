@@ -86,7 +86,9 @@ Non-polygon features require vector graphics programs to be efficiently rendered
 \section{Clipping}
 A layer has a defining box. The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
 
-\section{Objects in the OOP}
+When a layer is shifted because it is stacked onto a device or a device containing it is stacked onto a schematic, there must be a change in the bounding box so that the feature placement won't be clipped. As in \ref{sec:oop}, the object oriented methods do this.
+
+\section{Objects in the OOP}\label{sec:oop}
 The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items
 
 \end{document}

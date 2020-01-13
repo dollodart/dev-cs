@@ -12,28 +12,49 @@ class Schematic:
 
     def stack(self, device):
         yshift = bbox[-1]*1.25
-        xshift = bbox[-3]*1.25
-        self.devices.append(device)
+        xshift = bbox[-2]*1.25
         
+        yshift *= self.current % self.wrap
+        xshift *= self.current // self.wrap
+
+#        xshift = yshift = 0
+
         for layer in device:
+            layer.bbox[0] += xshift
+            layer.bbox[1] -= yshift
+            layer.bbox[2] += xshift
+            layer.bbox[3] -= yshift
+            layer.domain = (layer.domain[0] + xshift, layer.domain[1] + xshift)
+            layer.height = layer.bbox[3]
             for feature in layer:
-                feature.y -= yshift * (self.current % self.wrap)
-                feature.x += xshift * (self.current // self.wrap)
+                feature.y -= yshift 
+                feature.x += xshift
+
+        self.devices.append(device)
         self.current += 1
 
     def write(self, filename = 'schematic'):
         c = canvas.canvas()
-        for d in self.devices:
+        for counter,d in enumerate(self.devices):
             for l in d:
-                lbbox = path.rect(*l.bbox)
+                # rectangle is (x0,y0,w,h)
+                # to convert from (x0,y0,x1,y1)
+                # do (x0,y0,x1-x0,y1-y0)
+                # equivalent only when x0=y0
+                lbbox = l.bbox
+                rect = (lbbox[0],lbbox[1],lbbox[2]-lbbox[0],lbbox[3]-lbbox[1])
+                clippath = path.rect(*rect)
                 color = l.color
-                cl = canvas.canvas([canvas.clip(lbbox)])
+                cl = canvas.canvas()
+                cl = canvas.canvas([canvas.clip(clippath)])
+#                if l.bbox[3] < 0:
+#                    cl.fill(lbbox, [pyxcolor.rgb.red])
                 if l.stroke == True:
-                    actions = [cl.stroke,cl.fill]
-                else:
-                    actions = [cl.fill]
+                    cl.stroke(f.place())
                 for f in l:
                     cl.fill(f.place(), [color])
+#                    print(l.bbox,f.x,f.y)
+#                    cl.fill(path.rect(f.x,f.y,f.x+1,f.y+1))
                 c.insert(cl)
         c.writeSVGfile(filename)
 
@@ -57,10 +78,21 @@ class Device:
                 feature.y += self.stack_height
             layer.bbox[1] = self.stack_height
             layer.bbox[3] += self.stack_height
+            layer.height = layer.bbox[3]
         self.stack_height += hm
+
+    def append(self, layer):
+        self.layers.append(layer)
 
     def __getitem__(self, i):
         return self.layers[i]
+
+    def copy(self):
+        myd = Device()
+        for layer in self.layers: 
+            myd.append(layer.copy())
+        myd.stack_height = self.stack_height
+        return myd
 
 eps = 0.05
 class Layer:
@@ -85,15 +117,17 @@ class Layer:
         self.stroke = stroke
         if color == None:
             self.color = pyxcolor.rgb.black
+        else:
+            self.color = color
 
         # checking user inputs
         if x0 != 0 and phase_fraction != 0:
             print('Both x0 and specified phase fraction are non-zero, assuming they add')
 
         if domain == inf:
-            domain = (bbox[0], bbox[2])
+            self.domain = domain = (bbox[0], bbox[2])
         if period == inf:
-            period = bbox[2] - bbox[0]
+            self.period = period = bbox[2] - bbox[0]
 
         phase = phase_fraction * period
 
@@ -131,7 +165,9 @@ class Layer:
                               height=self.height,
                               phase_fraction=self.phase_fraction,
                               domain=self.domain,
-                              feature=self.feature)
+                              feature=self.feature,
+                              color=self.color,
+                              stroke=self.stroke)
 
 
 def conformal_layer(layer, thickness):
