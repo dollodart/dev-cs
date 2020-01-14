@@ -1,23 +1,28 @@
+from numpy.linalg import norm
+from numpy import array, roll, sqrt, argmin
 from math import ceil, inf
-from pyx import path, canvas, color as pyxcolor
+from pyx import path, canvas, color as pyxcolor, text
+text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
 bbox = (0, 0, 100, 100)
+
+
 class Schematic:
     """A schematic is a sequence """
-    def __init__(self, wrap = 10000  #don't use inf since it is floating point and casts integers to floats
-            ):
+
+    def __init__(self, wrap=10000  # don't use inf since it is floating point and casts integers to floats
+                 ):
         self.devices = []
         self.wrap = wrap
         self.current = 0
 
     def stack(self, device):
+        print('stacking device {}'.format(self.current))
         yshift = bbox[-1]*1.25
         xshift = bbox[-2]*1.25
-        
+
         yshift *= self.current % self.wrap
         xshift *= self.current // self.wrap
-
-#        xshift = yshift = 0
 
         for layer in device:
             layer.bbox[0] += xshift
@@ -25,42 +30,41 @@ class Schematic:
             layer.bbox[2] += xshift
             layer.bbox[3] -= yshift
             layer.domain = (layer.domain[0] + xshift, layer.domain[1] + xshift)
-            layer.height = layer.bbox[3]
+#            layer.height = layer.bbox[3]
             for feature in layer:
-                feature.y -= yshift 
                 feature.x += xshift
+                feature.y -= yshift
 
         self.devices.append(device)
         self.current += 1
 
-    def write(self, filename = 'schematic'):
+    def write(self, filename='schematic'):
         c = canvas.canvas()
-        for counter,d in enumerate(self.devices):
+        for counter, d in enumerate(self.devices):
             for l in d:
-                # rectangle is (x0,y0,w,h)
-                # to convert from (x0,y0,x1,y1)
-                # do (x0,y0,x1-x0,y1-y0)
-                # equivalent only when x0=y0
                 lbbox = l.bbox
-                rect = (lbbox[0],lbbox[1],lbbox[2]-lbbox[0],lbbox[3]-lbbox[1])
+                rect = (lbbox[0], lbbox[1], lbbox[2] -
+                        lbbox[0], lbbox[3]-lbbox[1])
                 clippath = path.rect(*rect)
-                color = l.color
                 cl = canvas.canvas()
                 cl = canvas.canvas([canvas.clip(clippath)])
-#                if l.bbox[3] < 0:
-#                    cl.fill(lbbox, [pyxcolor.rgb.red])
                 if l.stroke == True:
-                    cl.stroke(f.place())
+                    cl.stroke(f.place(), [l.stroke_color])
                 for f in l:
-                    cl.fill(f.place(), [color])
-#                    print(l.bbox,f.x,f.y)
-#                    cl.fill(path.rect(f.x,f.y,f.x+1,f.y+1))
+                    print(f.x,f.y,lbbox)
+                    cl.fill(f.place(), [l.color])
+                if l.text != '':
+                    xc = (lbbox[0]+lbbox[2])/2
+                    yc = (lbbox[1]+lbbox[3])/2
+                    t = text.Text(l.text, scale=2)
+                    cl.text(xc,yc,t)#,[text.halign.boxcenter])
                 c.insert(cl)
         c.writeSVGfile(filename)
 
 
 class Device:
     """A device stacks layers"""
+
     def __init__(self):
         self.layers = []
         self.stack_height = 0
@@ -78,7 +82,7 @@ class Device:
                 feature.y += self.stack_height
             layer.bbox[1] = self.stack_height
             layer.bbox[3] += self.stack_height
-            layer.height = layer.bbox[3]
+#            layer.height = layer.bbox[3]
         self.stack_height += hm
 
     def append(self, layer):
@@ -89,12 +93,12 @@ class Device:
 
     def copy(self):
         myd = Device()
-        for layer in self.layers: 
+        for layer in self.layers:
             myd.append(layer.copy())
         myd.stack_height = self.stack_height
         return myd
 
-eps = 0.05
+
 class Layer:
     """A layer consists of features uniformly horizontally distributed."""
 
@@ -105,9 +109,12 @@ class Layer:
                  domain=inf,
                  x0=0,
                  feature=None,
-                 #aesthetic features
-                 color = None,
-                 stroke = False):
+                 # aesthetic features
+                 color=None,
+                 stroke=False,
+                 stroke_color=None,
+                 lbbox=None,
+                 text=''):
 
         self.period = period
         self.height = height
@@ -115,10 +122,16 @@ class Layer:
         self.domain = domain
         self.feature = feature
         self.stroke = stroke
+        self.text = text
+
         if color == None:
             self.color = pyxcolor.rgb.black
         else:
             self.color = color
+        if stroke_color == None:
+            self.stroke_color = pyxcolor.rgb.black
+        else:
+            self.stroke_color = stroke_color
 
         # checking user inputs
         if x0 != 0 and phase_fraction != 0:
@@ -133,7 +146,7 @@ class Layer:
 
         if feature is None:  # assume square, and padding equals feature width
             edge_length = period / 2.
-            feature = Square(size=edge_length,y=-eps)
+            self.feature = Square(size=edge_length)
         # else use the provided feature
 
         if height is None:
@@ -147,16 +160,20 @@ class Layer:
         self.l = []
         for i in range(n):
             if domain[0] - eps < x < domain[1] + eps:
-                feature = feature.copy()
+                feature = self.feature.copy()
                 feature.x = x
                 self.l.append(feature)
             x += period
             x %= bbox[2]
 
-        self.bbox = [domain[0], 0, domain[1], self.height]
+        if lbbox == None:
+            self.bbox = [domain[0], 0, domain[1], self.height]
+        else:
+            self.bbox = lbbox
 
     def __getitem__(self, i):
         return self.l[i]
+
     def __len__(self):
         return len(self.l)
 
@@ -167,7 +184,8 @@ class Layer:
                               domain=self.domain,
                               feature=self.feature,
                               color=self.color,
-                              stroke=self.stroke)
+                              stroke=self.stroke,
+                              lbbox=self.bbox)
 
 
 def conformal_layer(layer, thickness):
@@ -177,6 +195,7 @@ def conformal_layer(layer, thickness):
     return layer
 
 
+eps = 0.01
 class Feature:
     def __init__(self, size, x, y):
         self.size = size
@@ -185,7 +204,6 @@ class Feature:
 
     def copy(self):
         return self.__class__(size=self.size, x=self.x, y=self.y)
-
 
 class Square(Feature):
     def __init__(self, size, x=0, y=0):
@@ -223,6 +241,7 @@ class Rectangle(Feature):
         self.y -= (mh - 1) * self.h / 2
         self.w *= mw
         self.h *= mh
+
 
 class Semicircle(Feature):
     def __init__(self, size, x=0, y=0):
@@ -275,7 +294,8 @@ class EquilateralTriangle(Feature):
 
     def place(self):
         return path.path(path.moveto(self.x, self.y),
-                         path.lineto(self.x + self.a/2, self.y + self.a*sqrt(3)/2),
+                         path.lineto(self.x + self.a/2,
+                                     self.y + self.a*sqrt(3)/2),
                          path.lineto(self.x + self.a, self.y),
                          path.closepath())
 
@@ -284,8 +304,6 @@ class EquilateralTriangle(Feature):
         self.a *= magnification
 
 
-from numpy import array, roll, sqrt, argmin
-from numpy.linalg import norm
 class Polygon(Feature):
     # size is actually point coordinates
     def __init__(self, size, x=0, y=0):
@@ -295,7 +313,7 @@ class Polygon(Feature):
         cop = (sum(x) / len(x), sum(y) / len(y))
         for point in size:
             phis.append(arctan2(point[1] - cop[1], point[0] - cop[0]))
-        s, s_phis = zip(*sorted(zip(size, phis), key = lambda x: -x[1]))
+        s, s_phis = zip(*sorted(zip(size, phis), key=lambda x: -x[1]))
         self.bbox = (x, y, max(x), max(y))
         self.s = s
 
@@ -306,17 +324,17 @@ class Polygon(Feature):
         paths.append(path.closepath())
         return path.path(*paths)
 
-    def magnify(self,thickness):
+    def magnify(self, thickness):
         delta = thickness
         rs = array(self.size)
 
         cop = rs.mean(axis=0)
         rs = rs - cop
-        ds = rs - roll(rs,1,axis=0)
-        ds = (ds.T/ norm(ds,axis=1) ).T
-        a = ds - roll(ds,-1,axis=0)
+        ds = rs - roll(rs, 1, axis=0)
+        ds = (ds.T / norm(ds, axis=1)).T
+        a = ds - roll(ds, -1, axis=0)
         a = (a.T/norm(a, axis=1)).T
-        d = (a.T*delta*norm(rs,axis=1)).T
+        d = (a.T*delta*norm(rs, axis=1)).T
         rsp = rs + d
         self.s = rsp + cop
         # change the origin of the shape
@@ -330,32 +348,32 @@ if __name__ == '__main__':
     l2 = Layer(10, phase_fraction=0.2)
     l3 = Layer(10, phase_fraction=0.75, feature=Rectangle((2, 2)))
     d = Device()
-    l4 = conformal_layer(l3, thickness = 0.1)
+    l4 = conformal_layer(l3, thickness=0.1)
     base_layer = Layer(100, feature=Rectangle((100, 0.1)))
     l5 = Layer(100, feature=Rectangle((100, 0.1), 0, 0.1))
     l6 = Layer(5, domain=(20, 40), feature=Semicircle(2))
     l7 = Layer(5, domain=(40, 60), feature=RightTriangleUp((1, 2)))
     l8 = Layer(5, domain=(60, 80), feature=Polygon(((0, 0), (2, 3), (3, 1))))
-    l9 = Layer(5, phase_fraction=0.5, domain=(60,80), feature=EquilateralTriangle(1))
-    l10 = conformal_layer(l6, thickness = 0.1)
-    l11 = conformal_layer(l10, thickness = 0.2)
-    l12 = conformal_layer(l8, thickness = 0.1)
+    l9 = Layer(5, phase_fraction=0.5, domain=(
+        60, 80), feature=EquilateralTriangle(1))
+    l10 = conformal_layer(l6, thickness=0.1)
+    l11 = conformal_layer(l10, thickness=0.2)
+    l12 = conformal_layer(l8, thickness=0.1)
 
     [print(f.place()) for f in l8]
     [print(f.place()) for f in l12]
 
     d.stack(l1)
     d.stack([l2, l4, l5, l3, base_layer])
-    d.stack([l11,l10, l6, l7])
-    d.stack([l12,l8,l9])
-    
+    d.stack([l11, l10, l6, l7])
+    d.stack([l12, l8, l9])
 
     c = canvas.canvas()
     k = pyxcolor.rgb.black
     r = pyxcolor.rgb.red
     b = pyxcolor.rgb.blue
-    
-    colors = [k,k,r,r,k,k,b,r,k,k,r,k,k]
+
+    colors = [k, k, r, r, k, k, b, r, k, k, r, k, k]
     for counter, l in enumerate(d):
         bbox = path.rect(*l.bbox)
         cl = canvas.canvas([canvas.clip(bbox)])

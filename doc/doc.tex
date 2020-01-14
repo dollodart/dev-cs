@@ -89,6 +89,14 @@ A layer has a defining box. The coordinates of a layer are defined relative to a
 When a layer is shifted because it is stacked onto a device or a device containing it is stacked onto a schematic, there must be a change in the bounding box so that the feature placement won't be clipped. As in \ref{sec:oop}, the object oriented methods do this.
 
 \section{Objects in the OOP}\label{sec:oop}
-The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items
+The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items as well as the references (named variables) assigned to them.
+
+\subsection{Copying} 
+Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features. Devices are copied for making schematics which show the creation of a device by a sequence of steps.
+
+When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
+
+%\section{Bloating}
+%When two fills share an exact boundary and they are overlapping another fill which goes through that boundary, there is sometimes a visual artifact where the color of the below fill is seen as a thin line. To get over this visual artifact, all features can be slightly bloated to go over their boundaries in a way that is otherwise imperceptible. This bloating is the same process as creating a conformal layer. There must also be looseness in the bounding box.
 
 \end{document}
