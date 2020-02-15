@@ -4,11 +4,52 @@ from math import ceil, inf
 from pyx import path, canvas, color as pyxcolor, text
 text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
-bbox = (0, 0, 100, 100)
 
+class Bbox():
+    """A bounding box. One definition of a bounding box in common use is the tuple (x1,y1,x2,y2) where 
+    x1 is the x-coordinate of the lower left corner (the minimum x)
+    y1 is the y-coordinate of the lower left corner (the minimum y)
+    x2 is the x-coordinate of the upper right corner (the maximum x)
+    y2 is the y-coordinate of the upper right corner (the maximum y)
+    """
+
+    def __init__(self,x1,y1,x2,y2):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+    def __getitem__(self,i):
+        if i == 0:
+            return self.x1
+        elif i == 1:
+            return self.y1
+        elif i == 2:
+            return self.x2
+        elif i == 3:
+            return self.y2
+        else:
+            raise IndexError("Out of range")
+
+    def __setitem__(self,i,v):
+        if i == 0:
+            self.x1 = v
+        elif i == 1:
+            self.y1 = v
+        elif i == 2:
+            self.x2 = v
+        elif i == 3:
+            self.y2 = v
+
+bbox = Bbox(0,0,100,100)
+
+eps = 0.01
 
 class Schematic:
-    """A schematic is a sequence """
+    """A schematic is a stack of devices to be laid out in a schematic.
+    
+    wrap: number of devices to display horizontally before beginning on a new line.
+        
+        """
 
     def __init__(self, wrap=10000  # don't use inf since it is floating point and casts integers to floats
                  ):
@@ -18,8 +59,8 @@ class Schematic:
 
     def stack(self, device):
         print('stacking device {}'.format(self.current))
-        yshift = bbox[-1]*1.25
-        xshift = bbox[-2]*1.25
+        yshift = (bbox.y2-bbox.y1)*1.25
+        xshift = (bbox.x2-bbox.x1)*1.25
 
         yshift *= self.current % self.wrap
         xshift *= self.current // self.wrap
@@ -30,7 +71,7 @@ class Schematic:
             layer.bbox[2] += xshift
             layer.bbox[3] -= yshift
             layer.domain = (layer.domain[0] + xshift, layer.domain[1] + xshift)
-#            layer.height = layer.bbox[3]
+#            layer.height = layer.bbox[3] - layer.bbox[1] # redundant for shift
             for feature in layer:
                 feature.x += xshift
                 feature.y -= yshift
@@ -63,7 +104,9 @@ class Schematic:
 
 
 class Device:
-    """A device stacks layers"""
+    """A device stacks layers. 
+    Stacking adjusts the bounding box and the feature y-positions by a shift of the current stack height.
+    If more than one layer is provided in one stack call all of the layers are placed on the same plane."""
 
     def __init__(self):
         self.layers = []
@@ -75,14 +118,13 @@ class Device:
         hm = 0
         for layer in layers:
             self.layers.append(layer)
-            h = layer.height
-            if h > hm:
-                hm = h
+            if layer.height > hm:
+                hm = layer.height
             for feature in layer:
                 feature.y += self.stack_height
+#            layer.bbox[1] += self.stack_height
             layer.bbox[1] = self.stack_height
             layer.bbox[3] += self.stack_height
-#            layer.height = layer.bbox[3]
         self.stack_height += hm
 
     def append(self, layer):
@@ -100,20 +142,37 @@ class Device:
 
 
 class Layer:
-    """A layer consists of features uniformly horizontally distributed."""
+    """A layer is a set of features uniformly horizontally distributed.
+    
+    period: The spatial period of the layer. It is assumed that the layer is equal parts trough and crest if no feature is given.
+    height: The height of the layer above its base point. Usually this should be equal to the feature height and this is the default value.
+    x0: The starting point of the layer laterally (related to phase shift by phi = 2 pi x0/period).
+    phase_fraction: A fraction from 0 to 1 to offset the layer laterally (related to phase shift by factor of 2 pi).
+    feature: The profile of the layer, often rectangular but can be traingular or otherwise.
+    domain: The domain of the layer. If infinite, it spans the layer bounding box, and this is default.
+
+    lbbox: If specified, a bounding box different from that inferred by the layer height and the domain.
+
+    aesthetic kwargs: 
+
+    stroke: whether or not the shape should have a boundary
+    stroke_color: if there is a boundary, the color of that boundary
+    text: a text to indicate the layer
+
+    """
 
     def __init__(self,
                  period=inf,
                  height=None,
                  phase_fraction=0,
-                 domain=inf,
                  x0=0,
+                 domain=inf,
+                 lbbox=None,
                  feature=None,
                  # aesthetic features
                  color=None,
                  stroke=False,
                  stroke_color=None,
-                 lbbox=None,
                  text=''):
 
         self.period = period
@@ -128,6 +187,7 @@ class Layer:
             self.color = pyxcolor.rgb.black
         else:
             self.color = color
+
         if stroke_color == None:
             self.stroke_color = pyxcolor.rgb.black
         else:
@@ -135,24 +195,23 @@ class Layer:
 
         # checking user inputs
         if x0 != 0 and phase_fraction != 0:
-            print('Both x0 and specified phase fraction are non-zero, assuming they add')
+            print('Both x0 and specified phase fraction are non-zero\nAssuming they add')
 
         if domain == inf:
-            self.domain = domain = (bbox[0], bbox[2])
+            self.domain = domain = (bbox.x1, bbox.x2)
         if period == inf:
-            self.period = period = bbox[2] - bbox[0]
+            self.period = period = bbox.x2 - bbox.x1
 
         phase = phase_fraction * period
 
-        if feature is None:  # assume square, and padding equals feature width
+        if self.feature is None:
             edge_length = period / 2.
             self.feature = Square(size=edge_length)
-        # else use the provided feature
 
         if height is None:
-            self.height = feature.bbox[3]
+            self.height = self.feature.bbox.y2 - self.feature.bbox.y1
 
-        n = ceil((bbox[2] - bbox[0]) / period)
+        n = ceil((bbox.x2 - bbox.x1) / period)
         l = []
 
         x = phase + x0
@@ -164,10 +223,10 @@ class Layer:
                 feature.x = x
                 self.l.append(feature)
             x += period
-            x %= bbox[2]
+            x %= bbox.x2
 
         if lbbox == None:
-            self.bbox = [domain[0], 0, domain[1], self.height]
+            self.bbox = Bbox(domain[0], 0, domain[1], self.height)
         else:
             self.bbox = lbbox
 
@@ -195,8 +254,14 @@ def conformal_layer(layer, thickness):
     return layer
 
 
-eps = 0.01
 class Feature:
+    """
+
+    x: the x-coordinate of the lower left corner of the feature
+    y: the y-coordinate of the lower left corner of the feature
+    size: a scalar, list of scalars, or list of coordinates which determines the feature size (and sometimes shape) for subclasses
+
+    """
     def __init__(self, size, x, y):
         self.size = size
         self.x = x
@@ -209,7 +274,7 @@ class Square(Feature):
     def __init__(self, size, x=0, y=0):
         super().__init__(size, x, y)
         self.l = self.size
-        self.bbox = (x, y, self.l, self.l)
+        self.bbox = Bbox(x, y, self.x + self.l, self.y + self.l)
 
     def place(self):
         xll = self.x
@@ -227,7 +292,7 @@ class Rectangle(Feature):
         super().__init__(size, x, y)
         self.w = self.size[0]
         self.h = self.size[1]
-        self.bbox = (x, y, self.w, self.h)
+        self.bbox = Bbox(x, y, self.x + self.w, self.y + self.h)
 
     def place(self):
         """Places the feature lower left and returns a path object describing the feature perimeter."""
@@ -247,7 +312,7 @@ class Semicircle(Feature):
     def __init__(self, size, x=0, y=0):
         super().__init__(size, x, y)
         self.r = self.size
-        self.bbox = (x, y, 2 * self.r, self.r)
+        self.bbox = Bbox(x, y, x + 2 * self.r, y + self.r)
         self.w = 2*self.r
 
     def place(self):
@@ -277,7 +342,7 @@ class RightTriangleUp(Feature):
         super().__init__(size, x, y)
         self.w = self.size[0]
         self.h = self.size[1]
-        self.bbox = (x, y, self.w, self.h)
+        self.bbox = Bbox(x, y, x + self.w, y + self.h)
 
     def place(self):
         return path.path(path.moveto(self.x, self.y),
@@ -290,7 +355,7 @@ class EquilateralTriangle(Feature):
     def __init__(self, size, x=0, y=0):
         super().__init__(size, x, y)
         self.a = self.size
-        self.bbox = (x, y, self.a, self.a*sqrt(3)/2)
+        self.bbox = Bbox(x, y, x + self.a, y + self.a*sqrt(3)/2)
 
     def place(self):
         return path.path(path.moveto(self.x, self.y),
@@ -309,12 +374,12 @@ class Polygon(Feature):
     def __init__(self, size, x=0, y=0):
         super().__init__(size, x, y)
         phis = []
-        x, y = zip(*size)
-        cop = (sum(x) / len(x), sum(y) / len(y))
+        xp, yp = zip(*size)
+        cop = (sum(xp) / len(xp), sum(yp) / len(yp))
         for point in size:
             phis.append(arctan2(point[1] - cop[1], point[0] - cop[0]))
         s, s_phis = zip(*sorted(zip(size, phis), key=lambda x: -x[1]))
-        self.bbox = (x, y, max(x), max(y))
+        self.bbox = Bbox(x, y, x + max(xp), y + max(yp))
         self.s = s
 
     def place(self):

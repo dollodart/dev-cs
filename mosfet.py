@@ -18,21 +18,22 @@ d.stack([substrate,n,p])
 s.stack(d)
 
 # not about copying
-e = d.copy()
+#e = d.copy()
 #for l in e:
 #    for f in l:
 #        print(f.x,f.y)
 #
-#e2 = Device()
-#e2.stack([substrate.copy(),n.copy(),p.copy()])
-#for l in e2:
-#    for f in l:
-#        print(f.x,f.y)
-##
-s.stack(e)
+s.write('a')
+e2 = Device()
+e2.stack([substrate.copy(),n.copy(),p.copy()])
+for l in e2:
+    for f in l:
+        print(f.x,f.y)
+
+s.stack(e2)
 #f = Device()
 #f.stack([substrate,n,p])
 #f.stack(oxide)
 #f.stack(gate)
 #s.stack(f)
-s.write('mosfet')
+s.write('b')
