@@ -180,47 +180,53 @@ class Layer:
         self.period = period
         self.height = height
         self.phase_fraction = phase_fraction
+        self.x0 = x0
         self.domain = domain
+        self.lbbox = lbbox
         self.feature = feature
+        self.domain_relative_phase = domain_relative_phase
+        self.color = color
         self.stroke = stroke
+        self.stroke_color = stroke_color
         self.text = text
 
-        if color == None:
+        # default handling
+
+        if self.color == None:
             self.color = pyxcolor.rgb.black
-        else:
-            self.color = color
 
         if stroke_color == None:
             self.stroke_color = pyxcolor.rgb.black
-        else:
-            self.stroke_color = stroke_color
 
-        # checking user inputs
-        if x0 != 0 and phase_fraction != 0:
+        if self.x0 != 0 and self.phase_fraction != 0:
             print('Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
 
-        if domain == inf:
+        if self.domain == inf:
             self.domain = (dbbox.x1, dbbox.x2)
-        if period == inf:
+
+        if self.period == inf:
             self.period = dbbox.x2 - dbbox.x1
 
-        phase = phase_fraction * self.period
-
         if self.feature is None:
-            edge_length = self.period / 2.
-            self.feature = Square(size=edge_length)
+            self.feature = Square(size=self.period / 2.)
 
-        if height is None:
+        if self.height is None:
             self.height = self.feature.bbox.y2 - self.feature.bbox.y1
+
+        if lbbox == None:
+            self.bbox = Bbox(self.domain[0], 0, self.domain[1], self.height)
+
+        x = x0 + self.phase_fraction * self.period
+
+        if self.domain_relative_phase:
+            x += self.domain[0]
+
+        # feature creating
 
         n = ceil((dbbox.x2 - dbbox.x1) / period)
         l = []
-
-        x = phase + x0
-        if domain_relative_phase:
-            x += self.domain[0]
-
         self.feats = []
+
         for i in range(n):
             if self.domain[0] - eps < x < self.domain[1] + eps:
                 feature = self.feature.copy()
@@ -229,10 +235,6 @@ class Layer:
             x += self.period
             x %= dbbox.x2
 
-        if lbbox == None:
-            self.bbox = Bbox(self.domain[0], 0, self.domain[1], self.height)
-        else:
-            self.bbox = lbbox
 
     def __getitem__(self, i):
         return self.feats[i]
