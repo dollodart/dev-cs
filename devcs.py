@@ -59,6 +59,9 @@ class Schematic:
         self.wrap = wrap
         self.current = 0
 
+    def __len__(self):
+        return len(self.devices)
+
     def stack(self, device):
         print('stacking device {}'.format(self.current))
         yshift = (dbbox.y2-dbbox.y1)*1.25
@@ -80,33 +83,42 @@ class Schematic:
         self.devices.append(device)
         self.current += 1
 
-    def write(self, filename='schematic'):
+    def write(self, filename='schematic', clip = True):
         c = canvas.canvas()
-        for counter, d in enumerate(self.devices):
-            for l in d:
-                lbbox = l.bbox
+        for counter, dev in enumerate(self.devices):
+            for lay in dev:
+                lbbox = lay.bbox
                 rect = (lbbox.x1, lbbox.y1, lbbox.x2-lbbox.x1,lbbox.y2-lbbox.y1)
                 clippath = path.rect(*rect)
-                cl = canvas.canvas()
-                cl = canvas.canvas([canvas.clip(clippath)])
-                if l.stroke == True:
-                    cl.stroke(f.place(), [l.stroke_color])
-                for f in l:
-                    print(f.x,f.y,lbbox)
-                    cl.fill(f.place(), [l.color])
-                if l.text != '':
+
+                if clip:
+                    clay = canvas.canvas([canvas.clip(clippath)])
+                else:
+                    clay = canvas.canvas()
+
+                for feat in lay:
+                    print('feature x = {}, feature y = {}'.format(feat.x,feat.y))
+                    print('layer bbbox = {}'.format(lbbox))
+                    clay.fill(feat.place(), [lay.color])
+                    if lay.stroke == True:
+                        clay.stroke(feat.place(), [lay.stroke_color])
+                if lay.text != '':
                     xc = (lbbox[0]+lbbox[2])/2
                     yc = (lbbox[1]+lbbox[3])/2
-                    t = text.Text(l.text, scale=2)
-                    cl.text(xc,yc,t)#,[text.halign.boxcenter])
-                c.insert(cl)
-        c.writeSVGfile(filename)
+                    t = text.Text(lay.text, scale=2)
+                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
+                c.insert(clay)
+        c.writeEPSfile(filename)
 
 
 class Device:
     """A device stacks layers. 
     Stacking adjusts the bounding box and the feature y-positions by a shift of the current stack height.
-    If more than one layer is provided in one stack call all of the layers are placed on the same plane."""
+    If more than one layer is provided in one stack call all of the layers are placed on the same plane.
+
+    stack_height: the current height of the stack in the device
+    
+    """
 
     def __init__(self):
         self.layers = []
@@ -117,29 +129,30 @@ class Device:
             layers = [layers]
         h = []
         for layer in layers:
-            self.layers.append(layer)
-            h.append(layer.height)
-
             for feature in layer:
                 feature.y += self.stack_height
-            # set the bbox to be on this plane
+            # set the bbox to be on the current plane
             layer.bbox.y1 = self.stack_height 
             layer.bbox.y2 = self.stack_height + layer.height 
+
+            self.layers.append(layer)
+            h.append(layer.height)
 
         self.stack_height += max(h)
 
     def append(self, layer):
+        """Append layers without changing their positions. Used in the copy method."""
         self.layers.append(layer)
 
     def __getitem__(self, i):
         return self.layers[i]
 
     def copy(self):
-        myd = Device()
+        cd = Device()
         for layer in self.layers:
-            myd.append(layer.copy())
-        myd.stack_height = self.stack_height
-        return myd
+            cd.append(layer.copy())
+        cd.stack_height = self.stack_height
+        return cd
 
 
 class Layer:
@@ -213,7 +226,7 @@ class Layer:
         if self.height is None:
             self.height = self.feature.bbox.y2 - self.feature.bbox.y1
 
-        if lbbox == None:
+        if bbox == None:
             self.bbox = Bbox(self.domain[0], 0, self.domain[1], self.height)
 
         x = x0 + self.phase_fraction * self.period
@@ -223,18 +236,19 @@ class Layer:
 
         # feature creating
 
-        n = ceil((dbbox.x2 - dbbox.x1) / period)
+        n = ceil((dbbox.x2 - dbbox.x1) / self.period)
         l = []
         self.feats = []
 
         for i in range(n):
             if self.domain[0] - eps < x < self.domain[1] + eps:
+                print('making feature')
                 feature = self.feature.copy()
                 feature.x = x
-                feature.y = 0
+                feature.y = self.bbox.y1
                 self.feats.append(feature)
             x += self.period
-            x %= dbbox.x2
+            x %= dbbox.x2 # dbbox.x1 == 0 is True
 
 
     def __getitem__(self, i):
@@ -266,6 +280,7 @@ def conformal_layer(layer, thickness):
     layer = layer.copy()
     for feature in layer:
         feature.magnify(thickness)
+
     layer.height += thickness
     layer.bbox.y2 += thickness
 
@@ -463,4 +478,4 @@ if __name__ == '__main__':
         for f in l:
             cl.fill(f.place(), [colors[counter]])
         c.insert(cl)
-    c.writeSVGfile('e-csec.svg')
+    c.writeEPSfile('e-csec.eps')
