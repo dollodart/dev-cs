@@ -151,7 +151,7 @@ class Layer:
     phase_fraction: A fraction from 0 to 1 to offset the layer laterally (related to trig phase shift by factor of 2 pi).
     feature: The profile of the layer, often rectangular but can be traingular or otherwise. By default the layer is equal parts square trough cand crest.
     domain: The domain of the layer. If infinite, it spans the layer bounding box, and this is default.
-    lbbox: The bounding box to clip out features from the layer. By default calculated from the layer height and the domain.
+    bbox: The bounding box to clip out features from the layer. By default calculated from the layer height and the domain.
     domain_relative_phase: Define the phase relative to the domain by letting x=0 be at the domain start rather than the origin. The phase fraction and x0 are by default not relative to the domain choice.
 
     aesthetic kwargs: 
@@ -168,7 +168,7 @@ class Layer:
                  phase_fraction=0,
                  x0=0,
                  domain=inf,
-                 lbbox=None,
+                 bbox=None,
                  feature=None,
                  domain_relative_phase = False,
                  # aesthetic features
@@ -182,7 +182,7 @@ class Layer:
         self.phase_fraction = phase_fraction
         self.x0 = x0
         self.domain = domain
-        self.bbox = lbbox
+        self.bbox = bbox
         self.feature = feature
         self.domain_relative_phase = domain_relative_phase
         self.color = color
@@ -244,15 +244,19 @@ class Layer:
         return len(self.feats)
 
     def copy(self):
-        return self.__class__(period=self.period,
-                              height=self.height,
-                              phase_fraction=self.phase_fraction,
-                              domain=self.domain,
-                              feature=self.feature,
-                              color=self.color,
-                              stroke=self.stroke,
-                              lbbox=self.bbox)
-
+        return self.__class__(
+                 period=self.period,
+                 height=self.height,
+                 phase_fraction=self.phase_fraction,
+                 x0=self.x0,
+                 domain=self.domain,
+                 bbox=self.bbox,
+                 feature=self.feature,
+                 domain_relative_phase = self.domain_relative_phase,
+                 color=self.color,
+                 stroke=self.stroke,
+                 stroke_color=self.stroke_color,
+                 text=self.text)
 
 def conformal_layer(layer, thickness):
     """Create a copy of the layer which is magnified slightly. 
