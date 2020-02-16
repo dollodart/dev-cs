@@ -39,8 +39,10 @@ class Bbox():
             self.x2 = v
         elif i == 3:
             self.y2 = v
+    def __str__(self):
+       return '{} {} {} {}'.format(self.x1,self.y1,self.x2,self.y2)
 
-bbox = Bbox(0,0,100,100)
+dbbox = Bbox(0,0,100,100)
 
 eps = 0.01
 
@@ -59,8 +61,8 @@ class Schematic:
 
     def stack(self, device):
         print('stacking device {}'.format(self.current))
-        yshift = (bbox.y2-bbox.y1)*1.25
-        xshift = (bbox.x2-bbox.x1)*1.25
+        yshift = (dbbox.y2-dbbox.y1)*1.25
+        xshift = (dbbox.x2-dbbox.x1)*1.25
 
         yshift *= self.current % self.wrap
         xshift *= self.current // self.wrap
@@ -71,7 +73,6 @@ class Schematic:
             layer.bbox[2] += xshift
             layer.bbox[3] -= yshift
             layer.domain = (layer.domain[0] + xshift, layer.domain[1] + xshift)
-#            layer.height = layer.bbox[3] - layer.bbox[1] # redundant for shift
             for feature in layer:
                 feature.x += xshift
                 feature.y -= yshift
@@ -84,8 +85,7 @@ class Schematic:
         for counter, d in enumerate(self.devices):
             for l in d:
                 lbbox = l.bbox
-                rect = (lbbox[0], lbbox[1], lbbox[2] -
-                        lbbox[0], lbbox[3]-lbbox[1])
+                rect = (lbbox.x1, lbbox.y1, lbbox.x2-lbbox.x1,lbbox.y2-lbbox.y1)
                 clippath = path.rect(*rect)
                 cl = canvas.canvas()
                 cl = canvas.canvas([canvas.clip(clippath)])
@@ -115,17 +115,18 @@ class Device:
     def stack(self, layers):
         if not isinstance(layers, list):
             layers = [layers]
-        hm = 0
+        h = []
         for layer in layers:
             self.layers.append(layer)
-            if layer.height > hm:
-                hm = layer.height
+            h.append(layer.height)
+
             for feature in layer:
                 feature.y += self.stack_height
-#            layer.bbox[1] += self.stack_height
-            layer.bbox[1] = self.stack_height
-            layer.bbox[3] += self.stack_height
-        self.stack_height += hm
+            # set the bbox to be on this plane
+            layer.bbox.y1 = self.stack_height 
+            layer.bbox.y2 = self.stack_height + layer.height 
+
+        self.stack_height += max(h)
 
     def append(self, layer):
         self.layers.append(layer)
@@ -144,14 +145,14 @@ class Device:
 class Layer:
     """A layer is a set of features uniformly horizontally distributed.
     
-    period: The spatial period of the layer. It is assumed that the layer is equal parts trough and crest if no feature is given.
+    period: The spatial period of the layer. By default it is infinity.
     height: The height of the layer above its base point. Usually this should be equal to the feature height and this is the default value.
-    x0: The starting point of the layer laterally (related to phase shift by phi = 2 pi x0/period).
-    phase_fraction: A fraction from 0 to 1 to offset the layer laterally (related to phase shift by factor of 2 pi).
-    feature: The profile of the layer, often rectangular but can be traingular or otherwise.
+    x0: The starting point of the layer laterally (related to trig phase shift by phi = 2 pi x0/period).
+    phase_fraction: A fraction from 0 to 1 to offset the layer laterally (related to trig phase shift by factor of 2 pi).
+    feature: The profile of the layer, often rectangular but can be traingular or otherwise. By default the layer is equal parts square trough cand crest.
     domain: The domain of the layer. If infinite, it spans the layer bounding box, and this is default.
-
-    lbbox: If specified, a bounding box different from that inferred by the layer height and the domain.
+    lbbox: The bounding box to clip out features from the layer. By default calculated from the layer height and the domain.
+    domain_relative_phase: Define the phase relative to the domain by letting x=0 be at the domain start rather than the origin. The phase fraction and x0 are by default not relative to the domain choice.
 
     aesthetic kwargs: 
 
@@ -169,6 +170,7 @@ class Layer:
                  domain=inf,
                  lbbox=None,
                  feature=None,
+                 domain_relative_phase = False,
                  # aesthetic features
                  color=None,
                  stroke=False,
@@ -195,46 +197,48 @@ class Layer:
 
         # checking user inputs
         if x0 != 0 and phase_fraction != 0:
-            print('Both x0 and specified phase fraction are non-zero\nAssuming they add')
+            print('Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
 
         if domain == inf:
-            self.domain = domain = (bbox.x1, bbox.x2)
+            self.domain = (dbbox.x1, dbbox.x2)
         if period == inf:
-            self.period = period = bbox.x2 - bbox.x1
+            self.period = dbbox.x2 - dbbox.x1
 
-        phase = phase_fraction * period
+        phase = phase_fraction * self.period
 
         if self.feature is None:
-            edge_length = period / 2.
+            edge_length = self.period / 2.
             self.feature = Square(size=edge_length)
 
         if height is None:
             self.height = self.feature.bbox.y2 - self.feature.bbox.y1
 
-        n = ceil((bbox.x2 - bbox.x1) / period)
+        n = ceil((dbbox.x2 - dbbox.x1) / period)
         l = []
 
         x = phase + x0
-        y = 0
-        self.l = []
+        if domain_relative_phase:
+            x += self.domain[0]
+
+        self.feats = []
         for i in range(n):
-            if domain[0] - eps < x < domain[1] + eps:
+            if self.domain[0] - eps < x < self.domain[1] + eps:
                 feature = self.feature.copy()
                 feature.x = x
-                self.l.append(feature)
-            x += period
-            x %= bbox.x2
+                self.feats.append(feature)
+            x += self.period
+            x %= dbbox.x2
 
         if lbbox == None:
-            self.bbox = Bbox(domain[0], 0, domain[1], self.height)
+            self.bbox = Bbox(self.domain[0], 0, self.domain[1], self.height)
         else:
             self.bbox = lbbox
 
     def __getitem__(self, i):
-        return self.l[i]
+        return self.feats[i]
 
     def __len__(self):
-        return len(self.l)
+        return len(self.feats)
 
     def copy(self):
         return self.__class__(period=self.period,
@@ -248,9 +252,16 @@ class Layer:
 
 
 def conformal_layer(layer, thickness):
+    """Create a copy of the layer which is magnified slightly. 
+    When placed behind the original layer, this looks like a conformal deposition.
+    """
+
     layer = layer.copy()
     for feature in layer:
         feature.magnify(thickness)
+    layer.height += thickness
+    layer.bbox.y2 += thickness
+
     return layer
 
 
@@ -299,7 +310,7 @@ class Rectangle(Feature):
         return path.rect(self.x, self.y, self.w, self.h)
 
     def magnify(self, thickness):
-        """Magnifies the feature to have a layer thickness greater while maintaing its center."""
+        """Magnifies the feature to have a layer thickness greater while keeping the center."""
         mw = 1 + 2 * thickness / self.w
         mh = 1 + 2 * thickness / self.h
         self.x -= (mw - 1) * self.w / 2
