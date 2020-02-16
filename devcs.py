@@ -182,7 +182,7 @@ class Layer:
         self.phase_fraction = phase_fraction
         self.x0 = x0
         self.domain = domain
-        self.lbbox = lbbox
+        self.bbox = lbbox
         self.feature = feature
         self.domain_relative_phase = domain_relative_phase
         self.color = color
@@ -231,6 +231,7 @@ class Layer:
             if self.domain[0] - eps < x < self.domain[1] + eps:
                 feature = self.feature.copy()
                 feature.x = x
+                feature.y = 0
                 self.feats.append(feature)
             x += self.period
             x %= dbbox.x2
@@ -458,4 +459,4 @@ if __name__ == '__main__':
         for f in l:
             cl.fill(f.place(), [colors[counter]])
         c.insert(cl)
-    c.writeSVGfile('c-s.svg')
+    c.writeSVGfile('e-csec.svg')

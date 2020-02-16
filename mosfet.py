@@ -23,7 +23,7 @@ s.stack(d)
 #    for f in l:
 #        print(f.x,f.y)
 #
-s.write('a')
+s.write('cmosfet.svg')
 e2 = Device()
 e2.stack([substrate.copy(),n.copy(),p.copy()])
 for l in e2:
@@ -36,4 +36,4 @@ s.stack(e2)
 #f.stack(oxide)
 #f.stack(gate)
 #s.stack(f)
-s.write('b')
+s.write('dmosfet.svg')

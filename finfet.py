@@ -20,7 +20,7 @@ d.stack([oxide, fin_oxide, fin])
 
 s = Schematic()
 s.stack(d)
-s.write('finfet')
+s.write('afinfet.svg')
 
 gate_thickness = oxide_thickness
 substrate = Layer(feature=Rectangle((100, 10)), color=b)
@@ -42,4 +42,4 @@ d2.stack(fin_gate)
 
 s.stack(d2)
 
-s.write('finfet2')
+s.write('bfinfet2.svg')
