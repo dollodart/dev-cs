@@ -7,7 +7,7 @@ r = pyxcolor.rgb.red
 
 oxide_thickness = 1
 substrate = Layer(feature=Rectangle((100, 10)), color=b,text='substrate')
-fin = Layer(phase_fraction=0.45, feature=Rectangle((10, 20)), color=b,text='fin')
+fin = Layer(feature=Rectangle((10, 20)), phase_fraction = 0.45, color=b,text='fin')
 oxide = Layer(feature=Rectangle((100, oxide_thickness)), color=g,text='oxide')
 
 fin_oxide = conformal_layer(fin, thickness=oxide_thickness)
@@ -20,10 +20,12 @@ d.stack([oxide, fin_oxide, fin])
 s = Schematic()
 s.stack(d)
 s.write('afinfet')
+import sys
+sys.exit()
 
 gate_thickness = oxide_thickness
 substrate = Layer(feature=Rectangle((100, 10)), color=b)
-fin = Layer(x0=25, feature=Rectangle((50, 20)), color=b)
+fin = Layer(feature=Rectangle((50, 20)), x0 = 25, color=b)
 substrate_oxide = Layer(feature=Rectangle((100, oxide_thickness)), color=g)
 fin_oxide = Layer(x0=25, feature=Rectangle((50, oxide_thickness)), color=g)
 fin_gate = Layer(x0=35, feature=Rectangle((30, gate_thickness)), color=k)
@@ -41,4 +43,4 @@ d2.stack(fin_gate)
 
 s.stack(d2)
 
-s.write('bfinfet2')
+s.write('bfinfet2',clip=False)
