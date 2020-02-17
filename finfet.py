@@ -7,7 +7,7 @@ r = pyxcolor.rgb.red
 
 oxide_thickness = 1
 substrate = Layer(feature=Rectangle((100, 10)), color=b,text='substrate')
-fin = Layer(phase_fraction=0.45, feature=Rectangle((10, 20)), color=b,text='fin')#,stroke=True,stroke_color=k)
+fin = Layer(phase_fraction=0.45, feature=Rectangle((10, 20)), color=b,text='fin')
 oxide = Layer(feature=Rectangle((100, oxide_thickness)), color=g,text='oxide')
 
 fin_oxide = conformal_layer(fin, thickness=oxide_thickness)

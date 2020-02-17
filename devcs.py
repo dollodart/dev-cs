@@ -69,6 +69,7 @@ class Schematic:
 
         yshift *= self.current % self.wrap
         xshift *= self.current // self.wrap
+        print('yshift = {}'.format(yshift))
 
         for layer in device:
             layer.bbox[0] += xshift
@@ -242,7 +243,6 @@ class Layer:
 
         for i in range(n):
             if self.domain[0] - eps < x < self.domain[1] + eps:
-                print('making feature')
                 feature = self.feature.copy()
                 feature.x = x
                 feature.y = self.bbox.y1

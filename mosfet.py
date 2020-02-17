@@ -14,26 +14,10 @@ gate = Layer(x0=40, height=10, feature = Rectangle((20,1)),color=k)
 
 s = Schematic(wrap = 10)
 d = Device()
+d2 = Device()
+d2.stack([substrate.copy(),n.copy(),p.copy()])
 d.stack([substrate,n,p])
 s.stack(d)
-
-# not about copying
-#e = d.copy()
-#for l in e:
-#    for f in l:
-#        print(f.x,f.y)
-#
-s.write('cmosfet')
-e2 = Device()
-e2.stack([substrate.copy(),n.copy(),p.copy()])
-for l in e2:
-    for f in l:
-        print(f.x,f.y)
-
-s.stack(e2)
-#f = Device()
-#f.stack([substrate,n,p])
-#f.stack(oxide)
-#f.stack(gate)
-#s.stack(f)
-s.write('dmosfet')
+s.stack(d2)
+s.write('dmosfet',clip=True)
+#s.write('dmosfet',clip=False)
