@@ -83,7 +83,7 @@ class Rectangle(Feature):
     def place(self,x,y):
         """Places the feature lower left and returns a path object describing the feature perimeter."""
 #        return path.rect(self.x, self.y, self.w, self.h)
-        return path.rect(x,y,self.w,self.h)
+        return path.rect(self.x + x,self.y + y,self.w,self.h)
 
     def magnify(self, thickness):
         """Magnifies the feature to have a layer thickness greater while keeping the center."""
@@ -93,6 +93,9 @@ class Rectangle(Feature):
         self.y -= (mh - 1) * self.h / 2
         self.w *= mw
         self.h *= mh
+        self.bbox = Bbox(self.x, self.y, self.x + self.w, self.y + self.h)
+    def copy(self):
+        return Rectangle(self.size,self.x,self.y)
 
 
 class Semicircle(Feature):

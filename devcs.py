@@ -27,7 +27,7 @@ class Schematic:
         return len(self.devices)
 
     def stack(self, device):
-        yshift = (dbbox.y2-dbbox.y1)*1.25
+        yshift = -1*(dbbox.y2-dbbox.y1)*1.25
         xshift = (dbbox.x2-dbbox.x1)*1.25
         yshift *= self.current_position % self.wrap
         xshift *= self.current_position // self.wrap
@@ -47,7 +47,8 @@ class Schematic:
                 yl = dev.stack_heights[counter2]
 
                 lbbox = lay.bbox
-                rect = (lbbox.x1 + xd + xl, lbbox.y1 + yd + yl, lbbox.x2-lbbox.x1,lbbox.y2-lbbox.y1)
+                rect = (lbbox.x1 + xd + xl, lbbox.y1 + yd + yl, 
+                        lbbox.x2-lbbox.x1,lbbox.y2-lbbox.y1)
                 clippath = path.rect(*rect)
 
                 if clip:
@@ -62,11 +63,7 @@ class Schematic:
                     xt = xd + xl + xf
                     yt = yd + yl + yf
 
-                    if lay.feature != None:
-                        clay.fill(lay.feature.place(xt, yt), [lay.color])
-                    else:
-                        print(lay.text)
-                        print('none feature',counter,counter2,counter3)
+                    clay.fill(lay.feature.place(xt, yt), [lay.color])
                     if lay.stroke == True:
                         clay.stroke(feat.place(xt, yt), [lay.stroke_color])
 
@@ -85,13 +82,13 @@ class Device:
     Stacking adjusts the bounding box and the feature y-positions by a shift of the current stack height.
     If more than one layer is provided in one stack call all of the layers are placed on the same plane.
 
-    stack_height: the current height of the stack in the device
+    stack_heights: the height of each layer in the device stack
     
     """
 
-    def __init__(self):
-        self.layers = []
-        self.stack_heights = []
+    def __init__(self,layers = [],stack_heights = [0]):
+        self.layers = layers
+        self.stack_heights = stack_heights
 
     def stack(self, layers):
         if not isinstance(layers, list):
@@ -102,7 +99,13 @@ class Device:
             self.layers.append(layer)
             h.append(layer.height)
 
-        self.stack_heights += [max(h)]*len(layers)
+        if len(self.stack_heights) == 0:
+            x = 0
+        else:
+            x = self.stack_heights[-1]
+
+        self.stack_heights += [self.stack_heights[-1]]*(len(layers)-1) \
+        + [max(h) + self.stack_heights[-1]]
 
     def __getitem__(self, i):
         return self.layers[i]
@@ -211,7 +214,6 @@ class Layer:
         return len(self.feats)
 
     def copy(self):
-        print(self.feature)
         return self.__class__(
                  period=self.period,
                  height=self.height,
@@ -219,7 +221,7 @@ class Layer:
                  x0=self.x0,
                  domain=self.domain,
                  bbox=self.bbox,
-                 feature=self.feature,
+                 feature=self.feature.copy(), # oop
                  domain_relative_phase = self.domain_relative_phase,
                  color=self.color,
                  stroke=self.stroke,

@@ -1,8 +1,9 @@
-from pyx import pyxcolor
+from pyx import color
 
-devcolors = {'ntype':pyxcolor.rgb.red
-        ,'gate':pyxcolor.rgb(0.4,0.4,0.4)
-        ,'ptype': pyxcolor.rgb(0.5,0.5,0)
-        ,'oxide':pyxcolor.rgb.black
-        ,'silicon':pyxcolor.rgb.blue
+devcolors = {'n-type':color.rgb.red
+        ,'gate':color.rgb(0.4,0.4,0.4)
+        ,'p-type': color.rgb(0.5,0.5,0)
+        ,'oxide':color.rgb.black
+        ,'silicon':color.rgb.blue
+        ,'contact':color.rgb(0.8,0.4,0)
         }
