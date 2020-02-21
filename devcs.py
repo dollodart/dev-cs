@@ -6,7 +6,7 @@ text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
 from features import *
 
-dbbox = Bbox(0,0,100,100)
+dbbox = Bbox(0,0,100,100) # dbbox must have x1,y1 = 0
 eps = 0.01
 
 class Schematic:
@@ -205,7 +205,8 @@ class Layer:
             if self.domain[0] - eps < x < self.domain[1] + eps:
                 self.feats.append(x)
             x += self.period
-            x %= dbbox.x2 # dbbox.x1 == 0 is True
+            if x // dbbox.x2 > 1:
+                break
 
     def __getitem__(self, i):
         return self.feats[i]
