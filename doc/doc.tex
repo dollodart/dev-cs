@@ -4,6 +4,10 @@
 
 \begin{document}
 
+\section{Purpose}
+Many cartoons of semiconductor devices are sufficiently simple that routines can be made for their construction. In particular, those with only rectangular shapes are easily constructed. Some accomodation for non-rectangular shapes can be made.
+
+
 \section{Coordinate System}
 The Cartesian coordinate system has origin taken to be the lower left hand corner of the diagram.
 
@@ -24,6 +28,8 @@ Quite often it is preferred to specify the starting location of a feature, which
 $$ x_0 = p (q + \phi) \,. $$
 
 where $q$ is the integral quotient of $c/p$.
+
+If more than the number of degrees of freedom is specified, the program is permissive and assumes they add in contribution.
 
 \section{Degrees of Freedom for a Feature}
 
@@ -75,7 +81,16 @@ This magnification will not achieve uniform thickness, since the two relations
 cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
 %it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
 
-The question of creating conformal layers on arbitrary polygons is not trivial but still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape.
+The question of creating conformal layers on arbitrary polygons is not trivial but still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
+
+$$\mathbf{r}_i' = \mathbf{r}_i + \hat{\mathbf{b}}_i \delta \Vert \mathbf{r}_i - \langle \mathbf{r}_i \rangle \Vert \,, $$
+
+where
+
+\begin{align*}
+\hat{\mathbf{b}}_i &= \hat{\mathbf{d}}_{i+1} - \hat{\mathbf{d}}_{i}\,, \\
+\mathbf{d}_i &= \mathbf{r}_i - \mathbf{r}_{i-1} \,.
+\end{align*}
 
 \section{Polygon Features}
 General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
@@ -92,7 +107,7 @@ When a layer is shifted because it is stacked onto a device or a device containi
 The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items as well as the references (named variables) assigned to them.
 
 \subsection{Copying} 
-Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features. Devices are copied for making schematics which show the creation of a device by a sequence of steps.
+Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features (which are also copied). Devices are copied for making schematics which show the creation of a device by a sequence of steps.
 
 When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
 

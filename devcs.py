@@ -67,11 +67,11 @@ class Schematic:
                     if lay.stroke == True:
                         clay.stroke(feat.place(xt, yt), [lay.stroke_color])
 
-#                if lay.text != '':
-#                    xc = (lbbox[0]+lbbox[2])/2
-#                    yc = (lbbox[1]+lbbox[3])/2
-#                    t = text.Text(lay.text, scale=2)
-#                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
+                if lay.text != '':
+                    xc = (lbbox[0]+lbbox[2])/2
+                    yc = (lbbox[1]+lbbox[3])/2
+                    t = text.Text(lay.text, scale=2)
+                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
 
                 c.insert(clay)
         c.writeEPSfile(filename)
