@@ -37,9 +37,30 @@ A feature may be having a shape and size. The resulting layer height depends on 
 
 A feature does not have position as an attribute--rather, in object oriented programming, it has a place method so that it can be put somewhere.
 
+\section{Convenience Functions}
+
+If the domain $w_l$ is not equal to $np + w$ where $n$ is an integer and $w$ is the feature width, it will not be symmetric in the domain. Given the period, the offset required (when the remainder is non-zero) is 
+
+$$x_0 = \frac{w_l - \text{floor}(w_l / p) + 1}{2} - \frac{w_f}{2}\,. $$
+
+Of course $w_f$ should be such that $x_0 > 0$. This is found by solving the equation
+
+$$x_0 + \frac{w_f}{2} + np + \frac{w_f}{2} + x = w_l\,, $$
+
+which is the required distance $x_0$ so that the distances from the endpoints of the domain to the center of the nearest feature are equal. The feature at the beginning moves at most half a period to the right, as expected. Here $n$ is the number of periods which fit while allowing for equal offset of the features from either side of the layer.
+
+%The feature width is irrelevant, only the period and device width appearing in the above equation, and this is also expected (consider larger features with correspondingly smaller separations so that the period remains the same).
+
 A features spacing $s_f$ between neighboring features, which is equal to the feature padding, is related to the period of the layer it is in $p$ and the feature width $w_f$ by
 
 $$p = w_f + s_f \,.$$
+
+Hence provided a desired feature width and spacing, the correct period and offset for symmetry can be calculated.
+
+There is also in general a desire to put in a number of features and a feature width and calculate the required period (which will be integral, since the provided number of features is integral). The period is related to the layer width, feature width, and number of features by
+
+$$ w_l = (n-1)p + w_f\,. $$
+
 
 \section{Stacking and Drawing Order}
 It is natural to define a programmatic stack of layers (or an analogous object) which makes the device from bottom to top. Each layer which is stacked on top is one layer higher. In the case of layers which exist on the same level, the stack takes a list of such layers and places them on the same level.
@@ -111,7 +132,5 @@ Each object has a copying method defined for it. Because features are repeated t
 
 When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
 
-%\section{Bloating}
-%When two fills share an exact boundary and they are overlapping another fill which goes through that boundary, there is sometimes a visual artifact where the color of the below fill is seen as a thin line. To get over this visual artifact, all features can be slightly bloated to go over their boundaries in a way that is otherwise imperceptible. This bloating is the same process as creating a conformal layer. There must also be looseness in the bounding box.
 
 \end{document}
