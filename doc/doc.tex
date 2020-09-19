@@ -45,9 +45,9 @@ $$x_0 = \frac{w_l - \text{floor}(w_l / p) + 1}{2} - \frac{w_f}{2}\,. $$
 
 Of course $w_f$ should be such that $x_0 > 0$. This is found by solving the equation
 
-$$x_0 + \frac{w_f}{2} + np + \frac{w_f}{2} + x = w_l\,, $$
+$$x_0 + \frac{w_f}{2} + np + \frac{w_f}{2} + x_0 = w_l\,, $$
 
-which is the required distance $x_0$ so that the distances from the endpoints of the domain to the center of the nearest feature are equal. The feature at the beginning moves at most half a period to the right, as expected. Here $n$ is the number of periods which fit while allowing for equal offset of the features from either side of the layer.
+which is the required distance $x_0$ so that the distances from the endpoints of the domain to the center of the nearest feature are equal. The feature at the beginning moves at most half a period to the right, as expected. Here $n$ is the number of periods which fit while allowing for equal offset of the features from either side of the layer. This equation is solved iteratively for general $w_l$ since the spacing $x_0$ is unknown yet the quotient depends on it since the periods are to span between the unknown offsets $x_0$.
 
 %The feature width is irrelevant, only the period and device width appearing in the above equation, and this is also expected (consider larger features with correspondingly smaller separations so that the period remains the same).
 
@@ -102,7 +102,7 @@ This magnification will not achieve uniform thickness, since the two relations
 cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
 %it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
 
-The question of creating conformal layers on arbitrary polygons is not trivial but still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
+The question of creating conformal layers on arbitrary polygons is not trivial, but at least for regular polygons with conformal layers much thinner than the minimum width of the shape (minimum Feret diameter)still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
 
 $$\mathbf{r}_i' = \mathbf{r}_i + \hat{\mathbf{b}}_i \delta \Vert \mathbf{r}_i - \langle \mathbf{r}_i \rangle \Vert \,, $$
 
@@ -113,11 +113,81 @@ where
 \mathbf{d}_i &= \mathbf{r}_i - \mathbf{r}_{i-1} \,.
 \end{align*}
 
+\subsection{Computational Geometry Algorithm for Finding the Coordinates of a Conformal Layer on an Arbitrary Polygon}
+%%% attempt 1
+%This algorithm may not be needed if analytical solutions exist
+%
+%\begin{enumerate}
+%    \item Calculate the sorted array of points in a clockwise order ($O(n\lg n)$ algorithms exist for this)
+%    \item Calculate the centroid $O(n)$
+%    \item For each edge and its two vertices, first evaluate the angle bisectors for the vertices and the perpendicular bisector (note in general neither the two angles nor two lengths of the bisectors will be equal) from the centroid
+%        % this is in total $O(n)$ since it is $O(1)$ calculations for each vertex
+%        % note the line segment bisectors and angle bisectors generally do not pass through the centroid
+%        % but that is the premise of this algorithm and so it applies only to those regular polygons for which this is the case
+%    \item Increment the perpendicular bisector by a fixed delta, and increment the angular bisectors by the trigonometric multiple such that the line between these coordinates will be parallel to the original edge
+%\end{enumerate}
+%
+%This matches each edge to two vertices, but each vertex is the vertex of two edges. The question is if a conformal layer will always be such that the distance along the angular bisector of any vertex will be the same for the two conformal layers on neighboring edges, or if there will be a discontinuity.
+%
+%This method is effectively one of similar triangles for each triangle formed from the centroid to two neighboring vertices. For each pair of vertices $\mathbf p_{i+1}$ and $\mathbf p_i$ there is the difference $\mathbf{d}_{i+1} = \mathbf p_{i+1} - \mathbf p_i$ and the perpendicular vector to that difference 
+%
+%$$\mathbf{q}_{i+1} = \begin{pmatrix}0 & -1 \\ 1 & 0 \end{pmatrix} \mathbf{d}_{i+1}\,.$$
+%
+%%note there is a general formula for finding the normal to a given vector introduced in multivariable calculus regarding gradients
+%
+%With this $\mathbf{q}_{i+1}$, it is not guaranteed it is of a length such that it touches the edge to which it is perpendicular and therefore can be incremented. The intersection of the two lines can give the coordinates, where the perpendicular vector starts at the origin (which is the centroid in the choice of coordinate system):
+%
+%\begin{align*}
+%    y = \frac{q_{i+1,y}}{q_{i+1,x}} x  = \frac{p_{i+1,x} - p_{i,x}}{p_{i+1,y} - p_{i,y}} x\,,\\
+%    y - p_{i+1,y} = \frac{p_{i+1,y} - p_{i,y}}{p_{i+1,x} - p_{i,x}} (x - p_{i+1,x})
+%\end{align*}
+%
+%Let $m \equiv d_{i+1,y}/d_{i+1,x}$, and $x_0, y_0$ be the coordinates of $\mathbf{p}_{i+1}$, then the equations are 
+%
+%\begin{align*}
+%    y = \frac 1m x \,,\\
+%    y - y_0 = m(x-x_0)\,.
+%\end{align*}
+%
+%Which is then solved as
+%
+%$$x = \frac{y_0 - m x_0}{\frac 1m - m } \,.$$
+%
+%% this actually gives angle bisectors at least for a regular pentagon
+%
+%The vector composed of this $x$-coordinate is incremented by a distance found by multiplying the unit vector by the increment, and gives one point of the conformal layer. In order to be a scaling of similar triangles, the vertex must be incremented the same fractional amount, which is the ratio of magnitudes $\Vert \mathbf{p}_{i+1} \Vert/\Vert \mathbf{q}_{i+1} \Vert$
+
+Given $\mathbf{p}_i$, $\mathbf{p}_{i+1}$, \ldots where $\mathbf{p}_i$ is the vertex which forms an edge with $\mathbf{p}_{i-1}$ and $\mathbf{p}_{i+1}$, there are the following definitions:
+
+\begin{enumerate}
+    \item The perpendicular bisector of the edge $e_{i+1}$ defined between $\mathbf{p}_i$ and $\mathbf{p}_{i+1}$ is a line which intercepts the average of the two vertices, $\mathbf{b}_i = (\mathbf{p}_i + \mathbf{p}_{i+1})/2$, and has as slope $$\mathbf{m}_i = \mathbf{R}\mathbf{d}_{i+1}$$ where $\mathbf{d}_{i+1} = \mathbf{p}_{i+1} - \mathbf{p}$ is the vector with length and slope of the edge and $\mathbf{R}$ is the rotation matrix 2-D, that is, $\mathbf{R} \equiv ((0,1),(-1,0))$
+    \item The angular bisector of the vertex $\mathbf{p}_i$, denoted $a_i$, is a line which intercepts $\mathbf{b}_i' = \mathbf{p}_i$ and has as slope 
+        $$ \mathbf{m}_i' = (\mathbf{p}_i - \mathbf{p}_{i+1}) + (\mathbf{p}_i - \mathbf{p}_{i-1})  = 2\mathbf{p}_i - \mathbf{p}_{i+1} - \mathbf{p}_{i-1} \,. $$
+\end{enumerate}
+
+The perpendicular bisector $e_{i+1}$ intercepts the angular bisector $a_i$ at one point and forms a triangle with the other two intercepts already known for the perpendicular bisector and the angular bisector on the polygon perimeter. The equation for the intercept is
+
+$$ x_i \mathbf{m}_i + \mathbf{b}_{i} = x_i' \mathbf{m}_{i+1}' + \mathbf{b}_i'\,.$$
+
+Then there is a linear equation to be solved for the extent along each line, $\mathbf{x}_i$
+
+$$ \begin{pmatrix} \mathbf{m}_i & -\mathbf{m}_{i+1}' \end{pmatrix} \mathbf{x}_i = \mathbf{b}_i' - \mathbf{b}_i \,.$$
+
+    The intercept position $\mathbf{y}_i$ is easily calculated from this by substituting into either of the starting linear equations the relevant extent along that slope. In order to create a conformal geometric layer, that triangle should be magnified to a similar triangle. The angle may be found as 
+
+$$\sin\theta = \frac{ (\mathbf{b}_i - \mathbf{y}_i) \cdot (\mathbf{b}_i' - \mathbf{y}) }{ \Vert \mathbf{b}_i - \mathbf{y}_i \Vert \Vert \mathbf{b}_i' - \mathbf{y}_i \Vert } \,.  $$
+
+The coordinate of the conformal layer is given by some constant increment from the perpendicular bisector intercept outward along the perpendicular bisector. Its other coordinate is then given by that increment scaled by the trigonometric factor from the angle bisector intercept outward along the angle bisector. This assumes that the intercept is always interior to the polygon, and that the distance to the vertex is greater than the distance to the perpendicular bisector. The edge should always form a leg of the triangle, the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i$ another leg, and the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i'$ the hypotenuse.
+
+This method draws half-edges of the conformal layer neighboring each vertex.
+
+Note for irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors. In order to make corners appear to be a continuous layer, it is possible to clip the excess off the corner. This requires finding the intercepts of the linear equations which define the conformal layer, and then passing those coordinates to the graphics program to define a shape to be clipped.
+
 \section{Polygon Features}
 General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
 
 \section{Non-polygon features}
-Non-polygon features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. 
+Non-polygon features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required.
 
 \section{Clipping}
 A layer has a defining box. The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
