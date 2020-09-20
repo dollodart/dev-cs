@@ -72,6 +72,7 @@ class Schematic:
         devl = self.place(0, 0)
         for cdev, dev in enumerate(devl):
             for clay, lay in enumerate(dev):
+                lay, laybbox = lay
                 for cfea, fea in enumerate(lay):
                     feat = self.devices[cdev][clay].feature
                     self.canvas.fill(fea, [feat.color])
@@ -199,6 +200,7 @@ class Layer:
     def place(self, x, y, width):
 
         feats = []
+        bbox = Bbox(x, y, x+width, x+self.height)
         x = self.x + x
         # if not domain relative phase shift (unlikely) 
         # x = self.x + (bbox.x1 // self.period)*self.period
@@ -214,7 +216,7 @@ class Layer:
         n = ceil(n)
         #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
         feats = [self.feature.place(x + i*self.period,y) for i in range(n)]
-        return feats
+        return feats, bbox
 
     def copy(self):
         return self.__class__(

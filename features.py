@@ -41,7 +41,6 @@ class Bbox():
        return '{} {} {} {}'.format(self.x1,self.y1,self.x2,self.y2)
 
 class PolygonFeature():
-    # size is actually point coordinates
     def __init__(self, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
         self.color = color
         self.stroke_color = stroke_color
