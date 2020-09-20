@@ -1,20 +1,19 @@
 from numpy.linalg import norm
 from numpy import array, roll, sqrt, argmin
-from math import ceil, inf
+from math import ceil, nan, isnan
 from pyx import path, canvas, color as pyxcolor, text
 text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
 from features import *
 
-dbbox = Bbox(0,0,100,100) # dbbox must have x1,y1 = 0
-eps = 0.01
+eps = 0.01 # numerical tolerance
 
 class Schematic:
     """A schematic is a stack of devices to be laid out in a schematic.
     
     wrap: number of devices to display horizontally before beginning on a new line.
-        
-        """
+
+    """
 
     def __init__(self, wrap=10000  # don't use inf since it is floating point and casts integers to floats
                  ):
@@ -27,8 +26,8 @@ class Schematic:
         return len(self.devices)
 
     def stack(self, device):
-        yshift = -1*(dbbox.y2-dbbox.y1)*1.25
-        xshift = (dbbox.x2-dbbox.x1)*1.25
+        yshift = -1*device.stack_height*1.25
+        xshift = device.width*1.25
         yshift *= self.current_position % self.wrap
         xshift *= self.current_position // self.wrap
 
@@ -36,44 +35,32 @@ class Schematic:
         self.devices.append(device)
         self.current_position += 1
 
-    def write(self, filename='schematic', clip = True):
+    def place(self, x, y):
+        l = []
+        for c, dev in enumerate(self.devices):
+            x2, y2 = self.devices_shift[c]
+            l.append(dev.place(x + x2, y + y2))
+        return l
 
+
+    def write(self, filename='schematic'):
         c = canvas.canvas()
-        for counter, dev in enumerate(self.devices):
-            xd = self.devices_shift[counter][0]
-            yd = self.devices_shift[counter][1]
-            for counter2, lay in enumerate(dev):
-                xl = 0
-                yl = dev.stack_heights[counter2]
+        devl = self.place(0, 0)
+        for cdev, dev in enumerate(devl):
+            for clay, lay in enumerate(dev):
+                for cfea, fea in enumerate(lay):
+                    feat = self.devices[cdev][clay].feature
+                    print(fea)
+                    c.fill(fea, [feat.color])
+                    c.stroke(fea, [feat.stroke_color])
+                    #TODO support clipping
 
-                lbbox = lay.bbox
-                rect = (lbbox.x1 + xd + xl, lbbox.y1 + yd + yl, 
-                        lbbox.x2-lbbox.x1,lbbox.y2-lbbox.y1)
-                clippath = path.rect(*rect)
+#                if lay.text != '':
+#                    xc = (lbbox[0]+lbbox[2])/2
+#                    yc = (lbbox[1]+lbbox[3])/2
+#                    t = text.Text(lay.text, scale=2)
+#                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
 
-                if clip:
-                    clay = canvas.canvas([canvas.clip(clippath)])
-                else:
-                    clay = canvas.canvas()
-
-                for counter3,feat in enumerate(lay):
-                    xf = feat
-                    yf = 0
-
-                    xt = xd + xl + xf
-                    yt = yd + yl + yf
-
-                    clay.fill(lay.feature.place(xt, yt), [lay.color])
-                    if lay.stroke == True:
-                        clay.stroke(feat.place(xt, yt), [lay.stroke_color])
-
-                if lay.text != '':
-                    xc = (lbbox[0]+lbbox[2])/2
-                    yc = (lbbox[1]+lbbox[3])/2
-                    t = text.Text(lay.text, scale=2)
-                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
-
-                c.insert(clay)
         c.writeEPSfile(filename)
 
 
@@ -82,38 +69,50 @@ class Device:
     Stacking adjusts the bounding box and the feature y-positions by a shift of the current stack height.
     If more than one layer is provided in one stack call all of the layers are placed on the same plane.
 
-    stack_heights: the height of each layer in the device stack
+    layers: the list of layers in the defices
+    stack_height: the current height of the stack
+    stack_base: the list of heights at which each layer is based 
+    width: the width of the device
     
     """
 
-    def __init__(self,layers = [],stack_heights = [0]):
+    def __init__(self,layers = [],stack_base = [],stack_height=0,width=100): 
         self.layers = layers
-        self.stack_heights = stack_heights
+        self.stack_base = stack_base
+        self.stack_height = stack_height
+        self.width = width
 
     def stack(self, layers):
         if not isinstance(layers, list):
             layers = [layers]
 
-        h = []
+        self.stack_base.extend([self.stack_height]*len(layers))
+
         for layer in layers:
             self.layers.append(layer)
-            h.append(layer.height)
 
-        if len(self.stack_heights) == 0:
-            x = 0
-        else:
-            x = self.stack_heights[-1]
+        self.stack_height += max(layer.height for layer in layers)
 
-        self.stack_heights += [self.stack_heights[-1]]*(len(layers)-1) \
-        + [max(h) + self.stack_heights[-1]]
+    def pop(self, count): #count is number of layers
+        p = self.layers[-count:]
+        self.layers = self.layers[:-count]
+        self.stack_height = self.stack_base[-count]
+        self.stack_base = self.stack_base[:-count]
+        return p
+
+    def place(self, x, y):
+        l = []
+        for c,layer in enumerate(self.layers):
+            l.append(layer.place(x,y+self.stack_base[c],self.width))
+        return l
 
     def __getitem__(self, i):
         return self.layers[i]
 
-    def copy(self):
-        layers = [layer.copy() for layer in self.layers]
-        return Device(layers=layers,
-                stack_heights=self.stack_heights)
+#    def copy(self):
+#        layers = [layer.copy() for layer in self.layers]
+#        return Device(layers=layers,
+#                stack_heights=self.stack_heights)
 
 
 class Layer:
@@ -137,106 +136,69 @@ class Layer:
     """
 
     def __init__(self,
-                 period=inf,
+                 period=nan,
                  height=None,
                  phase_fraction=0,
                  x0=0,
-                 domain=inf,
-                 bbox=None,
                  feature=None,
                  domain_relative_phase = False,
-                 # aesthetic features
                  color=None,
-                 stroke=False,
-                 stroke_color=None,
                  text=''):
 
         self.period = period
         self.height = height
         self.phase_fraction = phase_fraction
         self.x0 = x0
-        self.domain = domain
-        self.bbox = bbox
         self.feature = feature
-        self.domain_relative_phase = domain_relative_phase
-        self.color = color
-        self.stroke = stroke
-        self.stroke_color = stroke_color
         self.text = text
 
         # default handling
 
-        if self.color == None:
-            self.color = pyxcolor.rgb.black
-
-        if stroke_color == None:
-            self.stroke_color = pyxcolor.rgb.black
-
         if self.x0 != 0 and self.phase_fraction != 0:
             print('Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
 
-        if self.domain == inf:
-            self.domain = (dbbox.x1, dbbox.x2)
-
-        if self.period == inf:
-            self.period = dbbox.x2 - dbbox.x1
-
         if self.feature is None:
-            self.feature = Square(size=self.period / 2.)
+            self.feature = Square(a=self.period / 2.)
 
         if self.height is None:
-            self.height = self.feature.bbox.y2 - self.feature.bbox.y1
+            self.height = self.feature.get_bbox(0,0).y2 - self.feature.get_bbox(0,0).y1
+        self.x = x0
 
-        if bbox == None:
-            self.bbox = Bbox(self.domain[0], 0, self.domain[1], self.height)
+        if not isnan(self.period):
+            self.x += self.phase_fraction * self.period
 
-        x = x0 + self.phase_fraction * self.period
+    def place(self, x, y, width):
 
-        if self.domain_relative_phase:
-            x += self.domain[0]
+        feats = []
+        xf = self.x + x
+        # if not domain relative phase shift (unlikely) 
+        # x = self.x + (bbox.x1 // self.period)*self.period
+        # if self.x < bbox.x1 % self.period:
+        #     x += self.period
+        if isnan(self.period):
+            feats.append(self.feature.place(xf, y))
+            return feats
 
-        # feature creating
-
-        n = ceil((dbbox.x2 - dbbox.x1) / self.period)
-        l = []
-        self.feats = []
-
-        for i in range(n):
-            if self.domain[0] - eps < x < self.domain[1] + eps:
-                self.feats.append(x)
-            x += self.period
-            if x // dbbox.x2 > 1:
+        while True:
+            if (xf - x - self.x) // width > eps:
                 break
+            feats.append(
+                    self.feature.place(xf, y)
+                        )
+            xf += self.period
+        return feats
 
-    def __getitem__(self, i):
-        return self.feats[i]
-
-    def __len__(self):
-        return len(self.feats)
-
-    def copy(self):
-        return self.__class__(
-                 period=self.period,
-                 height=self.height,
-                 phase_fraction=self.phase_fraction,
-                 x0=self.x0,
-                 domain=self.domain,
-                 bbox=self.bbox,
-                 feature=self.feature.copy(), # oop
-                 domain_relative_phase = self.domain_relative_phase,
-                 color=self.color,
-                 stroke=self.stroke,
-                 stroke_color=self.stroke_color,
-                 text=self.text)
-
-def conformal_layer(layer, thickness):
-    """Create a copy of the layer which is magnified slightly. 
-    When placed behind the original layer, this looks like a conformal deposition.
-    """
-
-    layer = layer.copy()
-    layer.feature.magnify(thickness)
-    layer.height += thickness
-    layer.bbox.y2 += thickness
-
-    return layer
+#    def copy(self):
+#        return self.__class__(
+#                 period=self.period,
+#                 height=self.height,
+#                 phase_fraction=self.phase_fraction,
+#                 x0=self.x0,
+#                 domain=self.domain,
+#                 bbox=self.bbox,
+#                 feature=self.feature.copy(), # oop
+#                 domain_relative_phase = self.domain_relative_phase,
+#                 color=self.color,
+#                 stroke=self.stroke,
+#                 stroke_color=self.stroke_color,
+#                 text=self.text)

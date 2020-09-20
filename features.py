@@ -1,4 +1,6 @@
-from pyx import path
+from pyx import path, color as pyxcolor
+from numpy import sqrt, arctan2, array, roll
+from numpy.linalg import norm
 
 class Bbox():
     """A bounding box. One definition of a bounding box in common use is the tuple (x1,y1,x2,y2) where 
@@ -13,6 +15,7 @@ class Bbox():
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+
     def __getitem__(self,i):
         if i == 0:
             return self.x1
@@ -37,166 +40,134 @@ class Bbox():
     def __str__(self):
        return '{} {} {} {}'.format(self.x1,self.y1,self.x2,self.y2)
 
-class Feature:
-    """
-
-    x: the x-coordinate of the lower left corner of the feature
-    y: the y-coordinate of the lower left corner of the feature
-    size: a scalar, list of scalars, or list of coordinates which determines the feature size (and sometimes shape) for subclasses
-
-    """
-    def __init__(self, size, x, y):
-        self.size = size
-        self.x = x
-        self.y = y
-
-    def copy(self):
-        return self.__class__(size=self.size, x=self.x, y=self.y)
-
-class Square(Feature):
-
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
-        self.l = self.size
-        self.bbox = Bbox(x, y, self.x + self.l, self.y + self.l)
-
-    def place(self,x,y):
-            self.x = x
-            self.y =y 
-            xll = self.x
-            yll = self.y
-            w = h = self.l
-            return path.rect(xll, yll, w, h)
-
-    def magnify(self, magnification):
-        self.x += (1 - magnification) * self.l / 2
-        self.l *= magnification
-
-
-class Rectangle(Feature):
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
-        self.w = self.size[0]
-        self.h = self.size[1]
-        self.bbox = Bbox(x, y, self.x + self.w, self.y + self.h)
-
-    def place(self,x,y):
-        """Places the feature lower left and returns a path object describing the feature perimeter."""
-#        return path.rect(self.x, self.y, self.w, self.h)
-        return path.rect(self.x + x,self.y + y,self.w,self.h)
-
-    def magnify(self, thickness):
-        """Magnifies the feature to have a layer thickness greater while keeping the center."""
-        mw = 1 + 2 * thickness / self.w
-        mh = 1 + 2 * thickness / self.h
-        self.x -= (mw - 1) * self.w / 2
-        self.y -= (mh - 1) * self.h / 2
-        self.w *= mw
-        self.h *= mh
-        self.bbox = Bbox(self.x, self.y, self.x + self.w, self.y + self.h)
-    def copy(self):
-        return Rectangle(self.size,self.x,self.y)
-
-
-class Semicircle(Feature):
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
-        self.r = self.size
-        self.bbox = Bbox(x, y, x + 2 * self.r, y + self.r)
-        self.w = 2*self.r
-
-    def place(self,x,y):
-        self.x = x
-        self.y = y
-        return path.path(
-            path.arc(
-                self.x +
-                self.r,
-                self.y,
-                self.r,
-                0,
-                180),
-            path.lineto(
-                self.x +
-                2 *
-                self.r,
-                self.y))
-
-    def magnify(self, thickness):
-        magnification = 1 + thickness/self.r
-        self.x += (1 - magnification) * self.r
-        self.r *= magnification
-        self.w = 2*self.r
-
-
-class RightTriangleUp(Feature):
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
-        self.w = self.size[0]
-        self.h = self.size[1]
-        self.bbox = Bbox(x, y, x + self.w, y + self.h)
-
-    def place(self,x,y):
-        self.x = x
-        self.y = y
-        return path.path(path.moveto(self.x, self.y),
-                         path.lineto(self.x + self.w, self.y + self.h),
-                         path.lineto(self.x + self.w, self.y),
-                         path.lineto(self.x, self.y))
-
-
-class EquilateralTriangle(Feature):
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
-        self.a = self.size
-        self.bbox = Bbox(x, y, x + self.a, y + self.a*sqrt(3)/2)
-
-    def place(self,x,y):
-        self.x = x
-        self.y = y
-        return path.path(path.moveto(self.x, self.y),
-                         path.lineto(self.x + self.a/2,
-                                     self.y + self.a*sqrt(3)/2),
-                         path.lineto(self.x + self.a, self.y),
-                         path.closepath())
-
-    def magnify(self, magnification):
-        self.x += (1 - magnification) * self.a / 2
-        self.a *= magnification
-
-
-class Polygon(Feature):
+class PolygonFeature():
     # size is actually point coordinates
-    def __init__(self, size, x=0, y=0):
-        super().__init__(size, x, y)
+    def __init__(self, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        self.color = color
+        self.stroke_color = stroke_color
+
+    def sort_coords(self):
         phis = []
-        xp, yp = zip(*size)
+        xp, yp = zip(*self.coords)
         cop = (sum(xp) / len(xp), sum(yp) / len(yp))
-        for point in size:
+        for point in self.coords:
             phis.append(arctan2(point[1] - cop[1], point[0] - cop[0]))
-        s, s_phis = zip(*sorted(zip(size, phis), key=lambda x: -x[1]))
-        self.bbox = Bbox(x, y, x + max(xp), y + max(yp))
-        self.s = s
+        s, s_phis = zip(*sorted(zip(self.coords, phis), key=lambda x: -x[1]))
+        self.coords = s
 
     def place(self,x,y):
-        self.x = x
-        self.y = y
-        paths = [path.moveto(self.x, self.y)]
-        for point in self.s:
-            paths.append(path.lineto(self.x + point[0], self.y + point[1]))
+        paths = [path.moveto(x, y)]
+        for point in self.coords:
+            paths.append(path.lineto(x + point[0], y + point[1]))
         paths.append(path.closepath())
         return path.path(*paths)
 
-    def magnify(self, thickness):
-        delta = thickness
-        rs = array(self.size)
+    def get_bbox(self,x,y):
+        """Return bbox based off the subclass coordinates.""" 
+        xc, yc = zip(*self.coords)
+        bbox = Bbox(min(xc) + x
+                , min(yc) + y
+                , max(xc) + x
+                , max(yc) + y)
+        return bbox
 
-        cop = rs.mean(axis=0)
-        rs = rs - cop
-        ds = rs - roll(rs, 1, axis=0)
-        ds = (ds.T / norm(ds, axis=1)).T
-        a = ds - roll(ds, -1, axis=0)
-        a = (a.T/norm(a, axis=1)).T
-        d = (a.T*delta*norm(rs, axis=1)).T
-        rsp = rs + d
-        self.s = rsp + cop
+
+class Square(PolygonFeature):
+    def __init__(self, a, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = a
+        self.coords = [ (0,0)
+                        , (a, 0)
+                        , (a, a)
+                        , (0, a) ]
+
+class Rectangle(PolygonFeature):
+    def __init__(self, w, h, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = (w, h)
+        self.coords = [ (0,0)
+                        , (w, 0)
+                        , (w, h)
+                        , (0, h) ]
+
+class RightTriangleUpBack(PolygonFeature):
+    def __init__(self, a, b, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = (a,b)
+        self.coords = [ (0,0)
+                        , (a,0) 
+                        , (0,b)]
+
+class RightTriangleUpForward(PolygonFeature):
+    def __init__(self, a, b, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = (a,b)
+        self.coords = [ (0,0)
+                        , (a,0) 
+                        , (a,b)]
+
+class RightTriangleDownForward(PolygonFeature):
+    def __init__(self, a, b, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = (a,b)
+        self.coords = [ (a,0)
+                        , (a,b) 
+                        , (0,b)]
+
+class RightTriangleDownBack(PolygonFeature):
+    def __init__(self, a, b, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = (a,b)
+        self.coords = [ (0,0)
+                        ,(a,b)
+                        ,(0,b)
+                        ]
+
+#all possibilities: 
+#- (0,0), (a,0), (0,b) 
+#- (0,0), (a,0), (a,b)
+#- (a,0), (a,b), (0,b)
+#- (0,0), (a,b), (0,b)
+
+class EquilateralTriangle(PolygonFeature):
+    def __init__(self, a, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = a 
+        self.coords = [ (0,0)
+                        , (a/2, a*sqrt(3)/2)
+                        , (a, 0) ]
+
+class ConvexPolygon(PolygonFeature):
+    def __init__(self, coords, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+        super().__init__(color=color,stroke_color=stroke_color)
+        self.char_dims = coords
+        self.coords = coords
+        self.sort_coords()
+
+#non-linear 
+#class Semicircle(Feature):
+#    def __init__(self, size, x=0, y=0):
+#        super().__init__(size, x, y)
+#        self.r = self.size/2.
+#        self.bbox = Bbox(x, y, x + 2 * self.r, y + self.r)
+#
+#    def place(self,x,y):
+#        return path.path(
+#            path.arc(
+#                x + self.x +
+#                self.r,
+#                y + self.y,
+#                self.r,
+#                0,
+#                180),
+#            path.lineto(
+#                x + self.x +
+#                2 *
+#                self.r,
+#                y + self.y))
+#
+#    def magnify(self, thickness):
+#        """for non-linear shapes"""
+#        magnification = 1 + thickness/self.r
+#        self.x += (1 - magnification) * self.r
+#        self.r *= magnification

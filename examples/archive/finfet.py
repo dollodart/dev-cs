@@ -17,6 +17,7 @@ s = Schematic()
 s.stack(d)
 s.write('afinfet',clip=True)
 
+s = Schematic()
 gate_thickness = oxide_thickness
 substrate = Layer(feature=Rectangle((100, 10)), color=dc['silicon'])
 fin = Layer(feature=Rectangle((50, 20)), x0 = 25, color=dc['silicon'])
