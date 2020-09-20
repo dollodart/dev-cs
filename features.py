@@ -71,6 +71,15 @@ class PolygonFeature():
                 , max(yc) + y)
         return bbox
 
+    def get_width(self):
+        xc, _ = zip(*self.coords)
+        return max(xc) - min(xc)
+
+    def get_height(self):
+        _, yc = zip(*self.coords)
+        return max(yc) - min(yc)
+
+
 
 class Square(PolygonFeature):
     def __init__(self, a, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):

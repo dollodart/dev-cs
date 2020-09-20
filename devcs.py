@@ -1,7 +1,7 @@
 from numpy.linalg import norm
 from numpy import array, roll, sqrt, argmin
-from math import ceil, nan, isnan
-from pyx import path, canvas, color as pyxcolor, text
+from math import ceil, floor, nan, isnan
+from pyx import path, canvas as pyxcanvas, color as pyxcolor, text, style
 text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
 from features import *
@@ -20,13 +20,16 @@ class Schematic:
                  , xsepmult = 1.25
                  , devices = []
                  , current_position = 0
-                 , devices_shift = []):
+                 , devices_shift = []
+                 , canvas = None):
         self.devices = devices
         self.wrap = wrap
         self.current_position = current_position
         self.devices_shift = devices_shift
         self.xsepmult = xsepmult
         self.ysepmult = ysepmult
+        if canvas is None:
+            self.canvas = pyxcanvas.canvas()
 
     def __len__(self):
         return len(self.devices)
@@ -66,14 +69,13 @@ class Schematic:
                 , devices_shift = self.devices_shift)
 
     def write(self, filename='schematic'):
-        c = canvas.canvas()
         devl = self.place(0, 0)
         for cdev, dev in enumerate(devl):
             for clay, lay in enumerate(dev):
                 for cfea, fea in enumerate(lay):
                     feat = self.devices[cdev][clay].feature
-                    c.fill(fea, [feat.color])
-                    c.stroke(fea, [feat.stroke_color])
+                    self.canvas.fill(fea, [feat.color])
+                    self.canvas.stroke(fea, [feat.stroke_color])
                     #TODO support clipping
 
 #                if lay.text != '':
@@ -82,7 +84,11 @@ class Schematic:
 #                    t = text.Text(lay.text, scale=2)
 #                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
 
-        c.writeEPSfile(filename)
+        self.canvas.writeEPSfile(filename)
+
+    def write_ref(self, x1, y1, x2, y2):
+        self.canvas.stroke(path.line(x1,y1,x2,y2), [style.linewidth.THICK])
+
 
 
 class Device:
@@ -124,7 +130,7 @@ class Device:
     def place(self, x, y):
         l = []
         for c,layer in enumerate(self.layers):
-            l.append(layer.place(x,y+self.stack_base[c],self.width))
+            l.append(layer.place(x,y+self.stack_base[c],width=self.width))
         return l
 
     def __getitem__(self, i):
@@ -134,7 +140,8 @@ class Device:
         layers = [layer.copy() for layer in self.layers]
         return Device(layers=layers,
                 stack_height=self.stack_height,
-                stack_base=self.stack_base)
+                stack_base=self.stack_base,
+                width=self.width)
 
 
 class Layer:
@@ -183,7 +190,7 @@ class Layer:
             self.feature = Square(a=self.period / 2.)
 
         if self.height is None:
-            self.height = self.feature.get_bbox(0,0).y2 - self.feature.get_bbox(0,0).y1
+            self.height = self.feature.get_height()
         self.x = x0
 
         if not isnan(self.period):
@@ -192,22 +199,21 @@ class Layer:
     def place(self, x, y, width):
 
         feats = []
-        xf = self.x + x
+        x = self.x + x
         # if not domain relative phase shift (unlikely) 
         # x = self.x + (bbox.x1 // self.period)*self.period
         # if self.x < bbox.x1 % self.period:
         #     x += self.period
         if isnan(self.period):
-            feats.append(self.feature.place(xf, y))
+            feats.append(self.feature.place(x, y))
             return feats
-
-        while True:
-            if (xf - x - self.x) // width > eps:
-                break
-            feats.append(
-                    self.feature.place(xf, y)
-                        )
-            xf += self.period
+        fwidth = self.feature.get_width()
+        # condition = (x + i*self.period + fwidth) / width < 1 + eps:
+        # equivalently, i < ((1+eps)*width - fwidth - x)/self.period    
+        n = ((1+eps)*width - x - fwidth) / self.period 
+        n = ceil(n)
+        #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
+        feats = [self.feature.place(x + i*self.period,y) for i in range(n)]
         return feats
 
     def copy(self):
