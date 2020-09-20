@@ -11,29 +11,44 @@ eps = 0.01 # numerical tolerance
 class Schematic:
     """A schematic is a stack of devices to be laid out in a schematic.
     
-    wrap: number of devices to display horizontally before beginning on a new line.
+    wrap: number of devices to display vertically before beginning on a new column.
 
     """
 
-    def __init__(self, wrap=10000  # don't use inf since it is floating point and casts integers to floats
-                 ):
-        self.devices = []
+    def __init__(self, wrap=10000  # don't use inf/nan since it is floating point and casts integers to floats
+                 , ysepmult = 2
+                 , xsepmult = 1.25
+                 , devices = []
+                 , current_position = 0
+                 , devices_shift = []):
+        self.devices = devices
         self.wrap = wrap
-        self.current_position = 0
-        self.devices_shift = []
+        self.current_position = current_position
+        self.devices_shift = devices_shift
+        self.xsepmult = xsepmult
+        self.ysepmult = ysepmult
 
     def __len__(self):
         return len(self.devices)
 
     def stack(self, device):
-        yshift = -1*device.stack_height*1.25
-        xshift = device.width*1.25
+        yshift = -1*device.stack_height*self.ysepmult
+        xshift = device.width*self.xsepmult
         yshift *= self.current_position % self.wrap
         xshift *= self.current_position // self.wrap
 
         self.devices_shift.append([xshift,yshift])
         self.devices.append(device)
         self.current_position += 1
+
+    def unstack(self, count):
+        self.devices_shift = self.devices_shift[:-count]
+        self.devices = self.devices[:-count]
+        self.current_position -= count
+
+    def reverse(self):
+        self.devices = self.devices[::-1]
+        #self.devices_shift = self.devices_shift[::-1]
 
     def place(self, x, y):
         l = []
@@ -42,6 +57,13 @@ class Schematic:
             l.append(dev.place(x + x2, y + y2))
         return l
 
+    def copy(self):
+        devices = [d.copy() for d in self.devices]
+        return self.__clase__(devices=devices
+                , xsepmult = self.xsepmult
+                , ysepmult = self.ysepmult
+                , current_position = self.current_position
+                , devices_shift = self.devices_shift)
 
     def write(self, filename='schematic'):
         c = canvas.canvas()
@@ -50,7 +72,6 @@ class Schematic:
             for clay, lay in enumerate(dev):
                 for cfea, fea in enumerate(lay):
                     feat = self.devices[cdev][clay].feature
-                    print(fea)
                     c.fill(fea, [feat.color])
                     c.stroke(fea, [feat.stroke_color])
                     #TODO support clipping
@@ -109,10 +130,11 @@ class Device:
     def __getitem__(self, i):
         return self.layers[i]
 
-#    def copy(self):
-#        layers = [layer.copy() for layer in self.layers]
-#        return Device(layers=layers,
-#                stack_heights=self.stack_heights)
+    def copy(self):
+        layers = [layer.copy() for layer in self.layers]
+        return Device(layers=layers,
+                stack_height=self.stack_height,
+                stack_base=self.stack_base)
 
 
 class Layer:
@@ -188,17 +210,11 @@ class Layer:
             xf += self.period
         return feats
 
-#    def copy(self):
-#        return self.__class__(
-#                 period=self.period,
-#                 height=self.height,
-#                 phase_fraction=self.phase_fraction,
-#                 x0=self.x0,
-#                 domain=self.domain,
-#                 bbox=self.bbox,
-#                 feature=self.feature.copy(), # oop
-#                 domain_relative_phase = self.domain_relative_phase,
-#                 color=self.color,
-#                 stroke=self.stroke,
-#                 stroke_color=self.stroke_color,
-#                 text=self.text)
+    def copy(self):
+        return self.__class__(
+                 period=self.period,
+                 height=self.height,
+                 phase_fraction=self.phase_fraction,
+                 x0=self.x0,
+                 feature=self.feature, # features don't need to be deep copied
+                 text=self.text)
