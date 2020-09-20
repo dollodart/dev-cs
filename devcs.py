@@ -70,20 +70,27 @@ class Schematic:
 
     def write(self, filename='schematic'):
         devl = self.place(0, 0)
-        for cdev, dev in enumerate(devl):
-            for clay, lay in enumerate(dev):
-                lay, laybbox = lay
-                for cfea, fea in enumerate(lay):
-                    feat = self.devices[cdev][clay].feature
-                    self.canvas.fill(fea, [feat.color])
-                    self.canvas.stroke(fea, [feat.stroke_color])
-                    #TODO support clipping
+        for cdev, devpath in enumerate(devl):
+            for clay, laypath in enumerate(devpath):
+                lay, laybbox = laypath
+                laybbox_path = laybbox.to_path()
+                laycanv = pyxcanvas.canvas()
+                laycanv = pyxcanvas.canvas([
+                    pyxcanvas.clip(laybbox_path)])
+                feat = self.devices[cdev][clay].feature
 
-#                if lay.text != '':
-#                    xc = (lbbox[0]+lbbox[2])/2
-#                    yc = (lbbox[1]+lbbox[3])/2
-#                    t = text.Text(lay.text, scale=2)
-#                    clay.text(xc,yc,t)#,[text.halign.boxcenter])
+                for cfea, feapath in enumerate(lay):
+                    laycanv.fill(feapath, [feat.color])
+                    laycanv.stroke(feapath, [feat.stroke_color])
+
+                if self.devices[cdev][clay].text != '':
+                    xc = (laybbox.x1+laybbox.x2)/2
+                    yc = (laybbox.y1+laybbox.y2)/2
+                    t = text.Text(self.devices[cdev][clay].text
+                            , scale=2)
+                    laycanv.text(xc,yc,t)
+
+                self.canvas.insert(laycanv)
 
         self.canvas.writeEPSfile(filename)
 
@@ -131,7 +138,9 @@ class Device:
     def place(self, x, y):
         l = []
         for c,layer in enumerate(self.layers):
-            l.append(layer.place(x,y+self.stack_base[c],width=self.width))
+            l.append(layer.place(x,
+                y+self.stack_base[c],
+                width=self.width))
         return l
 
     def __getitem__(self, i):
@@ -199,15 +208,14 @@ class Layer:
 
     def place(self, x, y, width):
 
-        feats = []
-        bbox = Bbox(x, y, x+width, x+self.height)
+        bbox = Bbox(x, y, x+width, y+self.height)
         x = self.x + x
         # if not domain relative phase shift (unlikely) 
         # x = self.x + (bbox.x1 // self.period)*self.period
         # if self.x < bbox.x1 % self.period:
         #     x += self.period
         if isnan(self.period):
-            feats.append(self.feature.place(x, y))
+            feats = ( (self.feature.place(x, y),), bbox)
             return feats
         fwidth = self.feature.get_width()
         # condition = (x + i*self.period + fwidth) / width < 1 + eps:
@@ -215,8 +223,8 @@ class Layer:
         n = ((1+eps)*width - x - fwidth) / self.period 
         n = ceil(n)
         #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
-        feats = [self.feature.place(x + i*self.period,y) for i in range(n)]
-        return feats, bbox
+        feats = tuple(self.feature.place(x + i*self.period,y) for i in range(n))
+        return (feats, bbox)
 
     def copy(self):
         return self.__class__(

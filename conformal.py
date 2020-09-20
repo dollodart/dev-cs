@@ -35,10 +35,13 @@ def sort_verts(verts):
     phis = [ np.arctan2(v[1] - centroid[1], v[0] - centroid[0]) for v in verts]
     return verts[np.argsort(phis)]
 
-def conformal_coords(verts,thx=0.05):
+def conformal_coords(verts,thx=0.05,lowerleftorigin=False):
     """Create the coordinates of a conformal layer on a polygon.  Loops
     through the n vertices, at each vertex calculating the coordinates for the 
     half-edges to the perpendicular bisectors neighboring that vertex. """
+
+    if type(verts) is list or type(verts) is tuple:
+        verts = np.array(verts)
 
     centroid = verts.mean(axis=0)
     coords = []
@@ -71,18 +74,21 @@ def conformal_coords(verts,thx=0.05):
                 coords.append( pbi_i + pbi_s/np.linalg.norm(pbi_s)*thx )
 
             j += 1
+    coords = np.array(coords)
+    if lowerleftorigin:
+        coords = coords - coords.min(axis=0)
     return np.array(coords)
 
-from pyx import canvas, path, color
-
-def vpaths(verts):
-    paths = [path.moveto(verts[0][0], verts[0][1])] 
-    for v in verts:
-        paths.append(path.lineto(v[0], v[1]))
-    paths.append(path.closepath())
-    return path.path(*paths)
 
 if __name__ == '__main__':
+    from pyx import canvas, path, color
+
+    def vpaths(verts):
+        paths = [path.moveto(verts[0][0], verts[0][1])] 
+        for v in verts:
+            paths.append(path.lineto(v[0], v[1]))
+        paths.append(path.closepath())
+        return path.path(*paths)
     c = canvas.canvas()
     # square
     #verts = np.array((

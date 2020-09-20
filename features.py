@@ -40,6 +40,9 @@ class Bbox():
     def __str__(self):
        return '{} {} {} {}'.format(self.x1,self.y1,self.x2,self.y2)
 
+    def to_path(self):
+        return path.rect(self.x1,self.y1,self.x2-self.x1,self.y2-self.y1)
+
 class PolygonFeature():
     def __init__(self, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
         self.color = color
