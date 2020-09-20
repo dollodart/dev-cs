@@ -5,13 +5,22 @@
 \begin{document}
 
 \section{Purpose}
-Many cartoons of semiconductor devices are sufficiently simple that routines can be made for their construction. In particular, those with only rectangular shapes are easily constructed. Some accomodation for non-rectangular shapes can be made.
-
+Many cartoons of semiconductor device cross-sections are sufficiently simple that routines can be made for their construction. This package provides utilities for scripting the creation of semiconductor device cross-sections. 
 
 \section{Coordinate System}
-The Cartesian coordinate system has origin taken to be the lower left hand corner of the diagram.
+The global Cartesian coordinate system has origin taken to be the lower left hand corner of the schematic. Cartesian subdomains of the graphics canvas, are rectangular in shape with origin in their lower left hand corner.
 
-\section{Degrees of Freedom for a Layer}
+\section{Description of Objects}\label{sec:oop}
+
+The objects are, in ascending order of class hierarchy (in the sense of which objects contain lower objects, not which objects are subclasses of which objects), features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items as well as the references (named variables) assigned to them.
+
+\subsection{Schematic}
+The schematic is a collection of devices and only is used to layout the partially created devices in sequence for diagrams illustrating semiconductor fabrication processes.
+
+\subsection{Device}
+The device is a collection of layers and has no parameters which directly affect the drawing of features. Rather it maintains a stack height on which to deposit another layer. Importantly layers may be stacked in a list or successively. Those layers which are stacked in a list will be stacked at the same height (overlapping).
+
+\subsection{Layer}
 
 As defined, a layer has the attributes of phase, period, domain, and feature. The period is here synonymous with pitch. The phase is best reported as a phase fraction varying from 0 to 1. The start of the first feature $c$, the phase fraction $\phi$, and the period $p$ are related by
 
@@ -31,13 +40,30 @@ where $q$ is the integral quotient of $c/p$.
 
 If more than the number of degrees of freedom is specified, the program is permissive and assumes they add in contribution.
 
-\section{Degrees of Freedom for a Feature}
+\subsection{Feature}
 
-A feature may be having a shape and size. The resulting layer height depends on the shape and size of the feature, and shape and size are usually more than one parameter each--only regular polygons are defined by a single string parameter for shape (which is just a map to a number of vertices, hence the name $n$-gon) and a single size parameter (edge length). A feature may have any other aesthetic attributes such as color. For the purpose of layering it must have a base, though there is nothing stopping that base from being a point, such as an upside down triangle.
+A feature may be having a shape and size. The resulting layer height depends on the shape and size of the feature, and shape and size are usually more than one parameter each--only regular polygons are defined by a single string parameter for shape (which is just a map to a number of vertices, hence the name $n$-gon) and a single size parameter (edge length). A feature may have any other aesthetic attributes such as color. For the purpose of layering it must have a lowermost base, though the base may be a point such as in an upside down triangle.
 
-A feature does not have position as an attribute--rather, in object oriented programming, it has a place method so that it can be put somewhere.
+A feature does not have position as an attribute but a place method. This makes it easy to translate the containing objects. 
 
-\section{Convenience Functions}
+\subsubsection{Polygon Features}
+General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
+
+\subsubsection{Non-linear features}
+Non-linear features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required.
+
+\section{Clipping}
+A layer has a defining box (=subdomain). The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
+
+When a layer is shifted because it is stacked onto a device or a device containing it is stacked onto a schematic, there must be a change in the bounding box so that the feature placement won't be clipped. That is, the bounding box coordinates are translated with all other coordinates.
+
+\section{Copying} 
+%the copy methods as written are deep copy methods because they copy all the references recursively, e.g., copying a device copies also the layers and also the features
+Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features (which are also copied). Devices are copied for making schematics which show the creation of a device by a sequence of steps.
+
+When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
+
+\section{Convenience Functions for Symmetric Placement of Features in Layers}
 
 If the domain $w_l$ is not equal to $np + w$ where $n$ is an integer and $w$ is the feature width, it will not be symmetric in the domain. Given the period, the offset required (when the remainder is non-zero) is 
 
@@ -61,59 +87,54 @@ There is also in general a desire to put in a number of features and a feature w
 
 $$ w_l = (n-1)p + w_f\,. $$
 
-
-\section{Stacking and Drawing Order}
-It is natural to define a programmatic stack of layers (or an analogous object) which makes the device from bottom to top. Each layer which is stacked on top is one layer higher. In the case of layers which exist on the same level, the stack takes a list of such layers and places them on the same level.
-
-The drawing order may generally be different from the stack order. This is because it is much easier to define conformal layers as a result of magnifying the feature to which it conforms and then putting the original in the foreground, so only its area outside shows.
-
 \section{Conformal Layers}
-Each shape must have its own magnification definition. There are simply multiplication and addition operations corresponding to magnification and shifting. For example, if the thickness of a conformal layer $t$ on a square feature whose edge length is $x$ is to be made, then let $m$ be the yet unknown magnification and magnify the edge length with fixed origin in the lower left corner. The value of $m$ in terms of $t$ is found by the equation
-
-$$ m x = 2t + x\,, $$
-
-giving
-
-$$ m = 1 + 2 \frac tx \,.$$
-
-There is the elementary identity
-
-$$mx = 2 \frac{m-1}{2} x + x \,. $$
-
-That is, for the square whose coordinates $(0,0)$, $(x,x)$ are magnified to $(0,0)$, $(mx,mx)$, shifting the $x$-coordinate by $(m-1)/2$ makes the squares centered with respect to the horizontal position.
-
-The new coordinate of the lower left hand side is then 
-
-$$x_{ll}' = \frac{m-1}{2} x_{ll} \,. $$
-
-Because the height is not magnified to the same magnification, since it shouldn't peak out the bottom side,
-
-$$m_h = \frac{m+1}{2} \,. $$
-
-Alternatively, the magnified features outside of the layer bounding box may be clipped. A rectangle of width $w$ and height $h$ will, if its lower left corner is at $(0,0)$, have new lower left hand corner at $(1-m)/2 w, (1-m)/2 h)$.
-
-This magnification will not achieve uniform thickness, since the two relations
-
-\begin{align*}
-    mw = 2t + w \,,\\
-    mh = 2t + h \,,
-\end{align*}
-
-cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
-%it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
-
-The question of creating conformal layers on arbitrary polygons is not trivial, but at least for regular polygons with conformal layers much thinner than the minimum width of the shape (minimum Feret diameter)still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
-
-$$\mathbf{r}_i' = \mathbf{r}_i + \hat{\mathbf{b}}_i \delta \Vert \mathbf{r}_i - \langle \mathbf{r}_i \rangle \Vert \,, $$
-
-where
-
-\begin{align*}
-\hat{\mathbf{b}}_i &= \hat{\mathbf{d}}_{i+1} - \hat{\mathbf{d}}_{i}\,, \\
-\mathbf{d}_i &= \mathbf{r}_i - \mathbf{r}_{i-1} \,.
-\end{align*}
-
-\subsection{Computational Geometry Algorithm for Finding the Coordinates of a Conformal Layer on an Arbitrary Polygon}
+%%%version 0
+%Each shape must have its own magnification definition. There are simply multiplication and addition operations corresponding to magnification and shifting. For example, if the thickness of a conformal layer $t$ on a square feature whose edge length is $x$ is to be made, then let $m$ be the yet unknown magnification and magnify the edge length with fixed origin in the lower left corner. The value of $m$ in terms of $t$ is found by the equation
+%
+%$$ m x = 2t + x\,, $$
+%
+%giving
+%
+%$$ m = 1 + 2 \frac tx \,.$$
+%
+%There is the elementary identity
+%
+%$$mx = 2 \frac{m-1}{2} x + x \,. $$
+%
+%That is, for the square whose coordinates $(0,0)$, $(x,x)$ are magnified to $(0,0)$, $(mx,mx)$, shifting the $x$-coordinate by $(m-1)/2$ makes the squares centered with respect to the horizontal position.
+%
+%The new coordinate of the lower left hand side is then 
+%
+%$$x_{ll}' = \frac{m-1}{2} x_{ll} \,. $$
+%
+%Because the height is not magnified to the same magnification, since it shouldn't peak out the bottom side,
+%
+%$$m_h = \frac{m+1}{2} \,. $$
+%
+%Alternatively, the magnified features outside of the layer bounding box may be clipped. A rectangle of width $w$ and height $h$ will, if its lower left corner is at $(0,0)$, have new lower left hand corner at $(1-m)/2 w, (1-m)/2 h)$.
+%
+%This magnification will not achieve uniform thickness, since the two relations
+%
+%\begin{align*}
+%    mw = 2t + w \,,\\
+%    mh = 2t + h \,,
+%\end{align*}
+%
+%cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
+%%it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
+%
+%The question of creating conformal layers on arbitrary polygons is not trivial, but at least for regular polygons with conformal layers much thinner than the minimum width of the shape (minimum Feret diameter)still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
+%
+%$$\mathbf{r}_i' = \mathbf{r}_i + \hat{\mathbf{b}}_i \delta \Vert \mathbf{r}_i - \langle \mathbf{r}_i \rangle \Vert \,, $$
+%
+%where
+%
+%\begin{align*}
+%\hat{\mathbf{b}}_i &= \hat{\mathbf{d}}_{i+1} - \hat{\mathbf{d}}_{i}\,, \\
+%\mathbf{d}_i &= \mathbf{r}_i - \mathbf{r}_{i-1} \,.
+%\end{align*}
+%
+%\subsection{Computational Geometry Algorithm for Finding the Coordinates of a Conformal Layer on an Arbitrary Polygon}
 %%% attempt 1
 %This algorithm may not be needed if analytical solutions exist
 %
@@ -175,32 +196,12 @@ $$ \begin{pmatrix} \mathbf{m}_i & -\mathbf{m}_{i+1}' \end{pmatrix} \mathbf{x}_i 
 
     The intercept position $\mathbf{y}_i$ is easily calculated from this by substituting into either of the starting linear equations the relevant extent along that slope. In order to create a conformal geometric layer, that triangle should be magnified to a similar triangle. The angle may be found as 
 
-$$\sin\theta = \frac{ (\mathbf{b}_i - \mathbf{y}_i) \cdot (\mathbf{b}_i' - \mathbf{y}) }{ \Vert \mathbf{b}_i - \mathbf{y}_i \Vert \Vert \mathbf{b}_i' - \mathbf{y}_i \Vert } \,.  $$
+$$\cos\theta = \frac{ (\mathbf{b}_i - \mathbf{y}_i) \cdot (\mathbf{b}_i' - \mathbf{y}) }{ \Vert \mathbf{b}_i - \mathbf{y}_i \Vert \Vert \mathbf{b}_i' - \mathbf{y}_i \Vert } \,.  $$
 
 The coordinate of the conformal layer is given by some constant increment from the perpendicular bisector intercept outward along the perpendicular bisector. Its other coordinate is then given by that increment scaled by the trigonometric factor from the angle bisector intercept outward along the angle bisector. This assumes that the intercept is always interior to the polygon, and that the distance to the vertex is greater than the distance to the perpendicular bisector. The edge should always form a leg of the triangle, the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i$ another leg, and the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i'$ the hypotenuse.
 
 This method draws half-edges of the conformal layer neighboring each vertex.
 
 Note for irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors. In order to make corners appear to be a continuous layer, it is possible to clip the excess off the corner. This requires finding the intercepts of the linear equations which define the conformal layer, and then passing those coordinates to the graphics program to define a shape to be clipped.
-
-\section{Polygon Features}
-General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
-
-\section{Non-polygon features}
-Non-polygon features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required.
-
-\section{Clipping}
-A layer has a defining box. The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
-
-When a layer is shifted because it is stacked onto a device or a device containing it is stacked onto a schematic, there must be a change in the bounding box so that the feature placement won't be clipped. As in \ref{sec:oop}, the object oriented methods do this.
-
-\section{Objects in the OOP}\label{sec:oop}
-The objects are, in ascending order of class hierarchy, features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items as well as the references (named variables) assigned to them.
-
-\subsection{Copying} 
-Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features (which are also copied). Devices are copied for making schematics which show the creation of a device by a sequence of steps.
-
-When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
-
 
 \end{document}
