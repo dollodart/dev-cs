@@ -158,29 +158,42 @@ class ConvexPolygon(PolygonFeature):
         self.sort_coords()
 
 #non-linear 
-#class Semicircle(Feature):
-#    def __init__(self, size, x=0, y=0):
-#        super().__init__(size, x, y)
-#        self.r = self.size/2.
-#        self.bbox = Bbox(x, y, x + 2 * self.r, y + self.r)
-#
-#    def place(self,x,y):
-#        return path.path(
-#            path.arc(
-#                x + self.x +
-#                self.r,
-#                y + self.y,
-#                self.r,
-#                0,
-#                180),
-#            path.lineto(
-#                x + self.x +
-#                2 *
-#                self.r,
-#                y + self.y))
-#
-#    def magnify(self, thickness):
-#        """for non-linear shapes"""
-#        magnification = 1 + thickness/self.r
-#        self.x += (1 - magnification) * self.r
-#        self.r *= magnification
+class Semicircle():
+    def __init__(self, diameter,color=pyxcolor.rgb.black,stroke_color=None):
+        self.color = color
+        self.stroke_color = stroke_color
+        if self.stroke_color is None:
+            self.stroke_color = self.color
+
+        self.r = diameter/2.
+
+    def place(self,x,y):
+        return (path.path(
+            path.arc(
+                x +
+                self.r,
+                y,  
+                self.r,
+                0,
+                180),
+            path.lineto(
+                x +
+                2 *
+                self.r,
+                y )), self.color, self.stroke_color)
+
+    def get_bbox(self, x, y):
+        return Bbox(x, y, x + 2 * self.r, y + self.r)
+
+    def get_height(self):
+        return self.r
+
+    def get_width(self):
+        return 2*self.r
+
+    def magnify(self, thickness):
+        """For conformal layers non-linear shapes."""
+        magnification = 1 + thickness/self.r
+        return Semicircle(2*magnification*self.r), (1-magnification)*self.r
+        #self.x += (1 - magnification) * self.r
+        #self.r *= magnification
