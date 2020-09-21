@@ -37,6 +37,15 @@ for dwidth in 147,:
 
     ex = Layer(feature=Rectangle(100,1))
 
+    feat = EquilateralTriangle(5)
+    fwidth = feat.get_width()
+    p, x0 = spacingsreqs(fwidth, 10, dwidth)
+    trap = Layer(period = p,
+            feature = feat,
+            x0 = x0,
+            height = 3)
+
+
     d = Device(width=dwidth)
     d.stack(squ)
     d.stack(rec)
@@ -44,6 +53,7 @@ for dwidth in 147,:
     d.stack(tri)
     d.stack(irr)
     d.stack(ex)
+    d.stack(trap)
 
     s.stack(d.copy())
     s.write_ref(100,0,100,d.stack_height)
