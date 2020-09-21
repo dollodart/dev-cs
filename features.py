@@ -60,8 +60,9 @@ class PolygonFeature():
         self.coords = s
 
     def place(self,x,y):
-        paths = [path.moveto(x, y)]
-        for point in self.coords:
+        x0, y0 = self.coords[0]
+        paths = [path.moveto(x + x0, y + y0)]
+        for point in self.coords[1:]:
             paths.append(path.lineto(x + point[0], y + point[1]))
         paths.append(path.closepath())
         return (path.path(*paths), self.color, self.stroke_color)

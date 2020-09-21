@@ -8,14 +8,12 @@ substrate = Layer(feature=Rectangle(100, 10, color=dc['silicon']),text='substrat
 fin = Layer(feature=Rectangle(10, 20,color=dc['silicon']), x0 = 45, text='fin')
 oxide = Layer(feature=Rectangle(100, oxide_thickness, color=dc['oxide']),text='oxide')
 
-fin.feature.sort_coords()
 fin_oxide = conformal_coords(fin.feature.coords, thx=oxide_thickness)
-fin_oxide = ConvexPolygon(fin_oxide,color=dc['oxide'])
+#fin.feature.sort_coords()
+fin_oxide = ConvexPolygon(fin_oxide,color=dc['oxide']) # sorts input by default
 fin_oxide = Layer(feature=fin_oxide,x0=45,height=fin.height+oxide_thickness) 
-#x0 pass does not require -thickness because conformal coords returns COP centered intrinsice feature coordinates, not lower left cornere assigned (0,0)
-#may change
-#height is specified to clip excess in the case of a tall feature
-#feature clipping may be necessary for wide features
+#x0 pass does not require -thickness because conformal coords returns COP centered intrinsice feature coordinates by default
+# not lower left corner bbox assigned (0,0)
 
 d = Device()
 d.stack(substrate)
