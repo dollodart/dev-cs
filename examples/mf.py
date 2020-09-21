@@ -8,7 +8,7 @@ oxide = Layer(feature=Rectangle(100,1,color=dc['oxide']))
 gate = Layer(x0=40, feature = Rectangle(20,1,color=dc['gate']))
 
 d = Device()
-s = Schematic(xsepmult=1.25,ysepmult=3,wrap=3)
+s = Schematic(xsep=1.25*d.width,ysep=100,wrap=3)
 d.stack(substrate)
 s.stack(d.copy())
 d.stack((n,p))

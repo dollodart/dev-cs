@@ -56,7 +56,7 @@ for dwidth in 147,:
     d.stack(trap)
 
     s.stack(d.copy())
-    s.write_ref(100,0,100,d.stack_height)
+    s.stroke_line(100,0,100,d.stack_height)
 
 s.write(f'shapes')
 print(time() - t0)
