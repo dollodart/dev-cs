@@ -89,7 +89,7 @@ class Schematic:
         self.canvas.writeEPSfile(filename)
 
     def write_ref(self, x1, y1, x2, y2):
-        self.canvas.stroke(path.line(x1,y1,x2,y2), [style.linewidth.THICK])
+        self.canvas.stroke(path.line(x1,y1,x2,y2), [style.linewidth.THICK, pyxcolor.rgb.red])
 
 class Device:
     """A device stacks layers. 
@@ -203,7 +203,7 @@ class Layer:
         # condition = (x + i*self.period + fwidth) / width < 1 + eps:
         # equivalently, i < ((1+eps)*width - fwidth - x)/self.period    
         n = ((1+eps)*width - x - fwidth) / self.period 
-        n = ceil(n)
+        n = ceil(n) + 1 # plus 1 for clipping
         #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
         feats = tuple(self.feature.place(x + i*self.period,y) for i in range(n))
         return (feats, bbox, self.text)

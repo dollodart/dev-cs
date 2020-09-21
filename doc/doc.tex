@@ -69,17 +69,15 @@ When making copying methods, generally it is important to take note of attribute
 
 \section{Convenience Functions for Symmetric Placement of Features in Layers}
 
-If the domain $w_l$ is not equal to $np + w$ where $n$ is an integer and $w$ is the feature width, it will not be symmetric in the domain. Given the period, the offset required (when the remainder is non-zero) is 
+If the device width $w_d$ is not equal to $np + w_f$ where $n$ is an integer and $w_f$ is the feature width, it will not be symmetric. The offset $x_0$ required is calculated from the balance equation
 
-$$x_0 = \frac{w_l - \text{floor}(w_l / p) + 1}{2} - \frac{w_f}{2}\,. $$
+$$x_0 + \frac{w_f}{2} + np + \frac{w_f}{2} + x_0 = w_d\,, $$
 
-Of course $w_f$ should be such that $x_0 > 0$. This is found by solving the equation
+Here $n$ is also an unknown number of periods in the device width while able to keep a positive $x_0$ (within the device width). That is, the solution is for $\max n$ subject to $x_0 > 0$. One may simplify the equation to 
 
-$$x_0 + \frac{w_f}{2} + np + \frac{w_f}{2} + x_0 = w_l\,, $$
+$$\frac{2x_0}{p} = \frac{w_d - w_f}{p} - n \,. $$
 
-which is the required distance $x_0$ so that the distances from the endpoints of the domain to the center of the nearest feature are equal. The feature at the beginning moves at most half a period to the right, as expected. Here $n$ is the number of periods which fit while allowing for equal offset of the features from either side of the layer. This equation is solved iteratively for general $w_l$ since the spacing $x_0$ is unknown yet the quotient depends on it since the periods are to span between the unknown offsets $x_0$.
-
-%The feature width is irrelevant, only the period and device width appearing in the above equation, and this is also expected (consider larger features with correspondingly smaller separations so that the period remains the same).
+From which evidently $n = \lfloor (w_d - w_f)/p \rfloor$.
 
 A features spacing $s_f$ between neighboring features, which is equal to the feature padding, is related to the period of the layer it is in $p$ and the feature width $w_f$ by
 
@@ -87,11 +85,11 @@ $$p = w_f + s_f \,.$$
 
 Hence provided a desired feature width and spacing, the correct period and offset for symmetry can be calculated.
 
-There is also in general a desire to put in a number of features and a feature width and calculate the required period (which will be integral, since the provided number of features is integral). The period is related to the layer width, feature width, and number of features by
+One may also want to put in a number of features and a feature width and calculate the required period to fit those features bordering the edge of the device on both sides. Then the period is related to the layer width, feature width, and number of features by
 
 $$ w_l = (n-1)p + w_f\,. $$
 
-%TODO add the case when features are split symmetrically, half on either side
+One may also want to have a given number of features, but the features on either end are split symmetrically. This is simple to evaluate the period for: where $n$ is the total number of features, regardless whether they are clipped or not, $p = w_d/(n-1)$ and $x_0 = -w_f/2$. Note the period in this case is independent of feature width. The total number of features observed is actually $n-1$ since the features at either end are cut in half.
 
 \section{Conformal Layers}
 

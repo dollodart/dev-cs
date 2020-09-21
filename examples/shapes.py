@@ -1,27 +1,11 @@
 from devcs import *
 from features import *
-
-def num2period(num, fwidth, dwidth):
-    if num == 1 :
-        period = dwidth
-    else:
-        period = (dwidth - fwidth)/(num - 1)
-    return period
-
-def spacingsreqs(fwidth, swidth, dwidth):
-    p = fwidth + swidth
-    X = dwidth
-
-    n = (X // p) - 1
-    x0 = (X - n*p)/2 - fwidth/2
-    if x0 < 0:
-        n -= 1
-        x0 = (X - n*p)/2 - fwidth/2
-
-    return p, x0
+from time import time
+from convfuncs import num2period, spacingsreqs
 
 s = Schematic()
 
+t0 = time()
 for dwidth in 147,:
     feat = Square(5)
     fwidth = feat.get_bbox(0,0)[2] - feat.get_bbox(0,0)[0]
@@ -65,3 +49,4 @@ for dwidth in 147,:
     s.write_ref(100,0,100,d.stack_height)
 
 s.write(f'shapes')
+print(time() - t0)
