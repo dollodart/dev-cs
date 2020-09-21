@@ -20,13 +20,17 @@ The schematic is a collection of devices and only is used to layout the partiall
 \subsection{Device}
 The device is a collection of layers and has no parameters which directly affect the drawing of features. Rather it maintains a stack height on which to deposit another layer. Importantly layers may be stacked in a list or successively. Those layers which are stacked in a list will be stacked at the same height (overlapping).
 
+One consequence of stacking layers a the same height is is that one cannot have a memoryless stack, since the unstack operation won't know which layers were stacked as a list and which were not. This requires a list of the height at which each layer was stacked and is given variable name \texttt{stack\_base}.
+
+In addition to a stack which defines the height at which each layer is drawn, there may generally be a different stack desired which defines the drawing precedence. This is in cases where, instead of clipping features, it may be desired to draw over their parts. This is not implemented, but if the entries in the stack are permuted (which is easily achieved by list indexing, though the stack data structure is bad for permuting), it may be achieved.
+
 \subsection{Layer}
 
 As defined, a layer has the attributes of phase, period, domain, and feature. The period is here synonymous with pitch. The phase is best reported as a phase fraction varying from 0 to 1. The start of the first feature $c$, the phase fraction $\phi$, and the period $p$ are related by
 
 $$ \phi = \bmod(c, p) \,.$$
 
-The domain restricts features on some $0 < x < L$. However, even for centers within the domain, for finite widths generally the domain will not contain the whole feature. Clipping can be used.
+The device width restricts features on some $0 < x < L$. For features within the device width but whose widths extend out of it, clipping can be used. 
 
 Since the first feature is in the first period it follows
 
@@ -47,10 +51,10 @@ A feature may be having a shape and size. The resulting layer height depends on 
 A feature does not have position as an attribute but a place method. This makes it easy to translate the containing objects. 
 
 \subsubsection{Polygon Features}
-General polygon features under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates.
+Polygons under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates. Some routines such as the algorithm for conformal layer may depend on polygons being convex. The object methods 
 
 \subsubsection{Non-linear features}
-Non-linear features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required.
+Non-linear features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required. 
 
 \section{Clipping}
 A layer has a defining box (=subdomain). The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
@@ -87,96 +91,9 @@ There is also in general a desire to put in a number of features and a feature w
 
 $$ w_l = (n-1)p + w_f\,. $$
 
+%TODO add the case when features are split symmetrically, half on either side
+
 \section{Conformal Layers}
-%%%version 0
-%Each shape must have its own magnification definition. There are simply multiplication and addition operations corresponding to magnification and shifting. For example, if the thickness of a conformal layer $t$ on a square feature whose edge length is $x$ is to be made, then let $m$ be the yet unknown magnification and magnify the edge length with fixed origin in the lower left corner. The value of $m$ in terms of $t$ is found by the equation
-%
-%$$ m x = 2t + x\,, $$
-%
-%giving
-%
-%$$ m = 1 + 2 \frac tx \,.$$
-%
-%There is the elementary identity
-%
-%$$mx = 2 \frac{m-1}{2} x + x \,. $$
-%
-%That is, for the square whose coordinates $(0,0)$, $(x,x)$ are magnified to $(0,0)$, $(mx,mx)$, shifting the $x$-coordinate by $(m-1)/2$ makes the squares centered with respect to the horizontal position.
-%
-%The new coordinate of the lower left hand side is then 
-%
-%$$x_{ll}' = \frac{m-1}{2} x_{ll} \,. $$
-%
-%Because the height is not magnified to the same magnification, since it shouldn't peak out the bottom side,
-%
-%$$m_h = \frac{m+1}{2} \,. $$
-%
-%Alternatively, the magnified features outside of the layer bounding box may be clipped. A rectangle of width $w$ and height $h$ will, if its lower left corner is at $(0,0)$, have new lower left hand corner at $(1-m)/2 w, (1-m)/2 h)$.
-%
-%This magnification will not achieve uniform thickness, since the two relations
-%
-%\begin{align*}
-%    mw = 2t + w \,,\\
-%    mh = 2t + h \,,
-%\end{align*}
-%
-%cannot be satisfied. Hence unequal magnifications are required for a rectangle for constant thickness of the conformal layer. 
-%%it is for this reason that a rod, when heated, extends much further along its axis than perpendicular to it
-%
-%The question of creating conformal layers on arbitrary polygons is not trivial, but at least for regular polygons with conformal layers much thinner than the minimum width of the shape (minimum Feret diameter)still simple. A distance, weighted by the distance of the vertex from the center of the shape, is gone along the angle bisector of each vertex to produce the new shape. In equation form,
-%
-%$$\mathbf{r}_i' = \mathbf{r}_i + \hat{\mathbf{b}}_i \delta \Vert \mathbf{r}_i - \langle \mathbf{r}_i \rangle \Vert \,, $$
-%
-%where
-%
-%\begin{align*}
-%\hat{\mathbf{b}}_i &= \hat{\mathbf{d}}_{i+1} - \hat{\mathbf{d}}_{i}\,, \\
-%\mathbf{d}_i &= \mathbf{r}_i - \mathbf{r}_{i-1} \,.
-%\end{align*}
-%
-%\subsection{Computational Geometry Algorithm for Finding the Coordinates of a Conformal Layer on an Arbitrary Polygon}
-%%% attempt 1
-%This algorithm may not be needed if analytical solutions exist
-%
-%\begin{enumerate}
-%    \item Calculate the sorted array of points in a clockwise order ($O(n\lg n)$ algorithms exist for this)
-%    \item Calculate the centroid $O(n)$
-%    \item For each edge and its two vertices, first evaluate the angle bisectors for the vertices and the perpendicular bisector (note in general neither the two angles nor two lengths of the bisectors will be equal) from the centroid
-%        % this is in total $O(n)$ since it is $O(1)$ calculations for each vertex
-%        % note the line segment bisectors and angle bisectors generally do not pass through the centroid
-%        % but that is the premise of this algorithm and so it applies only to those regular polygons for which this is the case
-%    \item Increment the perpendicular bisector by a fixed delta, and increment the angular bisectors by the trigonometric multiple such that the line between these coordinates will be parallel to the original edge
-%\end{enumerate}
-%
-%This matches each edge to two vertices, but each vertex is the vertex of two edges. The question is if a conformal layer will always be such that the distance along the angular bisector of any vertex will be the same for the two conformal layers on neighboring edges, or if there will be a discontinuity.
-%
-%This method is effectively one of similar triangles for each triangle formed from the centroid to two neighboring vertices. For each pair of vertices $\mathbf p_{i+1}$ and $\mathbf p_i$ there is the difference $\mathbf{d}_{i+1} = \mathbf p_{i+1} - \mathbf p_i$ and the perpendicular vector to that difference 
-%
-%$$\mathbf{q}_{i+1} = \begin{pmatrix}0 & -1 \\ 1 & 0 \end{pmatrix} \mathbf{d}_{i+1}\,.$$
-%
-%%note there is a general formula for finding the normal to a given vector introduced in multivariable calculus regarding gradients
-%
-%With this $\mathbf{q}_{i+1}$, it is not guaranteed it is of a length such that it touches the edge to which it is perpendicular and therefore can be incremented. The intersection of the two lines can give the coordinates, where the perpendicular vector starts at the origin (which is the centroid in the choice of coordinate system):
-%
-%\begin{align*}
-%    y = \frac{q_{i+1,y}}{q_{i+1,x}} x  = \frac{p_{i+1,x} - p_{i,x}}{p_{i+1,y} - p_{i,y}} x\,,\\
-%    y - p_{i+1,y} = \frac{p_{i+1,y} - p_{i,y}}{p_{i+1,x} - p_{i,x}} (x - p_{i+1,x})
-%\end{align*}
-%
-%Let $m \equiv d_{i+1,y}/d_{i+1,x}$, and $x_0, y_0$ be the coordinates of $\mathbf{p}_{i+1}$, then the equations are 
-%
-%\begin{align*}
-%    y = \frac 1m x \,,\\
-%    y - y_0 = m(x-x_0)\,.
-%\end{align*}
-%
-%Which is then solved as
-%
-%$$x = \frac{y_0 - m x_0}{\frac 1m - m } \,.$$
-%
-%% this actually gives angle bisectors at least for a regular pentagon
-%
-%The vector composed of this $x$-coordinate is incremented by a distance found by multiplying the unit vector by the increment, and gives one point of the conformal layer. In order to be a scaling of similar triangles, the vertex must be incremented the same fractional amount, which is the ratio of magnitudes $\Vert \mathbf{p}_{i+1} \Vert/\Vert \mathbf{q}_{i+1} \Vert$
 
 Given $\mathbf{p}_i$, $\mathbf{p}_{i+1}$, \ldots where $\mathbf{p}_i$ is the vertex which forms an edge with $\mathbf{p}_{i-1}$ and $\mathbf{p}_{i+1}$, there are the following definitions:
 
@@ -202,6 +119,6 @@ The coordinate of the conformal layer is given by some constant increment from t
 
 This method draws half-edges of the conformal layer neighboring each vertex.
 
-Note for irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors. In order to make corners appear to be a continuous layer, it is possible to clip the excess off the corner. This requires finding the intercepts of the linear equations which define the conformal layer, and then passing those coordinates to the graphics program to define a shape to be clipped.
+Note for irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors to create a conformal layer of a fixed thickness. One may desire that the conformal layer appears like a continuous film. Consider $\theta_i$ as the one formed between a perpendicular bisector $e_i$ and an angular bisector $a_i$, and $\theta_{i+1}$ as the one formed between a perpendicular bisector $e_{i+1}$ and an angular bisector $a_i$. The increments from the vertex at $a_i$ are weighted as $\sec\theta$, so that if without loss of generality $\theta_i < \theta_{i+1}$, then $\sec(\theta_i) < \sec(\theta_{i+1}$ and it is the conformal coordinate associated with the perpendicular bisector $e_{i+1}$ that is farther out. Then it is possible to, along the line defined between $\tilde{\mathbf{b}}_i$ and $\tilde{\mathbf{b}}_i'$, where a tilde indicates the conformal coordinate analog, move the coordinate so that it is collinear with the line defined between $\tilde{\mathbf{b}}_{i-1}$ and $\tilde{\mathbf{b}}_i''$ (double prime indicating it is generally different, since the factors will differ). This is equivalent to finding the intercept of the two lines and using that as the common conformal coordinate $\tilde{\mathbf{b}}_i'$ for the angular bisector $a_i$. 
 
 \end{document}

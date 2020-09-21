@@ -67,13 +67,22 @@ def conformal_coords(verts,thx=0.05,lowerleftorigin=False):
             cost = calc_cosine(pbi_i,pai,abi_i)
 
             if j == 0:
-                coords.append( pbi_i + pbi_s/np.linalg.norm(pbi_s)*thx )
-                coords.append( abi_i + abi_s/np.linalg.norm(abi_s)*thx/cost )
+                ei = pbi_i + pbi_s/np.linalg.norm(pbi_s)*thx
+                ai0 = abi_i + abi_s/np.linalg.norm(abi_s)*thx/cost
             else:
-                coords.append( abi_i + abi_s/np.linalg.norm(abi_s)*thx/cost )
-                coords.append( pbi_i + pbi_s/np.linalg.norm(pbi_s)*thx )
+                eip1 = pbi_i + pbi_s/np.linalg.norm(pbi_s)*thx 
+                ai1 = abi_i + abi_s/np.linalg.norm(abi_s)*thx/cost 
 
             j += 1
+
+        slope1 = ai0 - ei
+        slope2 = ai1 - eip1
+        intercept1 = ei
+        intercept2 = eip1
+        intercept = calc_intercept(slope1, intercept1, slope2, intercept2)
+
+        coords.extend((eip1, intercept, ei))
+
     coords = np.array(coords)
     if lowerleftorigin:
         coords = coords - coords.min(axis=0)
