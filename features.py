@@ -95,9 +95,7 @@ class PolygonFeature():
         d = self.__dict__
         dims = d['char_dims']
         dv = {'color':d['color'],'stroke_color':d['stroke_color']}
-        return self.__class__(
-            *dims,
-            **dv)
+        return self.__class__(*dims,**dv)
 
 
 class Square(PolygonFeature):
@@ -173,6 +171,8 @@ class ConvexPolygon(PolygonFeature):
         self.char_dims = coords
         self.coords = coords
         self.sort_coords()
+    def copy(self):
+        return self.__class__(self.coords,self.color,self.stroke_color)
 
 # non-linear
 
