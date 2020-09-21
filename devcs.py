@@ -5,6 +5,7 @@ from pyx import path, canvas as pyxcanvas, color as pyxcolor, text, style
 text.set(text.UnicodeEngine)
 from numpy import arctan2, sqrt
 from features import *
+from collections import deque
 
 eps = 0.01 # numerical tolerance
 
@@ -18,14 +19,12 @@ class Schematic:
     def __init__(self, wrap=10000  # don't use inf/nan since it is floating point and casts integers to floats
                  , ysepmult = 2
                  , xsepmult = 1.25
-                 , devices = []
+                 , devices_xy = deque()
                  , current_position = 0
-                 , devices_shift = []
                  , canvas = None):
-        self.devices = devices
         self.wrap = wrap
         self.current_position = current_position
-        self.devices_shift = devices_shift
+        self.devices_xy = devices_xy
         self.xsepmult = xsepmult
         self.ysepmult = ysepmult
         if canvas is None:
@@ -40,54 +39,49 @@ class Schematic:
         yshift *= self.current_position % self.wrap
         xshift *= self.current_position // self.wrap
 
-        self.devices_shift.append([xshift,yshift])
-        self.devices.append(device)
+        self.devices_xy.append((device,(xshift,yshift)))
         self.current_position += 1
 
-    def unstack(self, count):
-        self.devices_shift = self.devices_shift[:-count]
-        self.devices = self.devices[:-count]
+    def pop(self, count):
+        dp = queue()
         self.current_position -= count
-
-    def reverse(self):
-        self.devices = self.devices[::-1]
-        #self.devices_shift = self.devices_shift[::-1]
+        for i in count:
+            dp.append(self.devices_xy.pop())
+        return dp
 
     def place(self, x, y):
-        l = []
-        for c, dev in enumerate(self.devices):
-            x2, y2 = self.devices_shift[c]
-            l.append(dev.place(x + x2, y + y2))
-        return l
+        return (d[0].place(x + d[1][0], y + d[1][1]) for d in self.devices_xy)
 
     def copy(self):
-        devices = [d.copy() for d in self.devices]
-        return self.__clase__(devices=devices
+        devices_xy = deque( (d[0].copy(),d[1]) for d in self.devices_xy)
+        return self.__class__(devices_xy=devices_xy
                 , xsepmult = self.xsepmult
                 , ysepmult = self.ysepmult
                 , current_position = self.current_position
                 , devices_shift = self.devices_shift)
 
+    def reverse(self):
+        self.devices_xy.reverse()
+
     def write(self, filename='schematic'):
-        devl = self.place(0, 0)
-        for cdev, devpath in enumerate(devl):
+        schpath = self.place(0, 0)
+        for cdev, devpath in enumerate(schpath):
             for clay, laypath in enumerate(devpath):
-                lay, laybbox = laypath
+                laypath, laybbox, laytext = laypath
                 laybbox_path = laybbox.to_path()
-                laycanv = pyxcanvas.canvas()
+                #laycanv = pyxcanvas.canvas()
                 laycanv = pyxcanvas.canvas([
                     pyxcanvas.clip(laybbox_path)])
-                feat = self.devices[cdev][clay].feature
 
-                for cfea, feapath in enumerate(lay):
-                    laycanv.fill(feapath, [feat.color])
-                    laycanv.stroke(feapath, [feat.stroke_color])
+                for cfea, feapath in enumerate(laypath):
+                    feapath, color, stroke_color = feapath
+                    laycanv.fill(feapath, [color])
+                    laycanv.stroke(feapath, [stroke_color])
 
-                if self.devices[cdev][clay].text != '':
+                if laytext != '':
                     xc = (laybbox.x1+laybbox.x2)/2
                     yc = (laybbox.y1+laybbox.y2)/2
-                    t = text.Text(self.devices[cdev][clay].text
-                            , scale=2)
+                    t = text.Text(laytext, scale=2)
                     laycanv.text(xc,yc,t)
 
                 self.canvas.insert(laycanv)
@@ -96,8 +90,6 @@ class Schematic:
 
     def write_ref(self, x1, y1, x2, y2):
         self.canvas.stroke(path.line(x1,y1,x2,y2), [style.linewidth.THICK])
-
-
 
 class Device:
     """A device stacks layers. 
@@ -111,48 +103,38 @@ class Device:
     
     """
 
-    def __init__(self,layers = [],stack_base = [],stack_height=0,width=100): 
-        self.layers = layers
-        self.stack_base = stack_base
+    def __init__(self,layers_y = deque(),stack_height=0,width=100): 
+        self.layers_y = layers_y
         self.stack_height = stack_height
         self.width = width
 
     def stack(self, layers):
-        if not isinstance(layers, list):
-            layers = [layers]
+        if not isinstance(layers, list) and not isinstance(layers, tuple):
+            layers = (layers,)
 
-        self.stack_base.extend([self.stack_height]*len(layers))
-
-        for layer in layers:
-            self.layers.append(layer)
-
+        self.layers_y.extend((l,self.stack_height) for l in layers)
         self.stack_height += max(layer.height for layer in layers)
 
     def pop(self, count): #count is number of layers
-        p = self.layers[-count:]
-        self.layers = self.layers[:-count]
-        self.stack_height = self.stack_base[-count]
-        self.stack_base = self.stack_base[:-count]
+        p = deque()
+        for i in range(count - 1):
+            p.append(self.layers_y.pop())
+        pt = self.layers_y.pop()
+        self.stack_height = pt[1]
+        p.append(pt)
         return p
 
     def place(self, x, y):
-        l = []
-        for c,layer in enumerate(self.layers):
-            l.append(layer.place(x,
-                y+self.stack_base[c],
-                width=self.width))
-        return l
+        return (l[0].place(x,y+l[1],self.width) for l in self.layers_y)
 
-    def __getitem__(self, i):
-        return self.layers[i]
+    def reverse(self):
+        self.layers_y.reverse()
 
     def copy(self):
-        layers = [layer.copy() for layer in self.layers]
-        return Device(layers=layers,
+        layers_y = deque( (l[0].copy(),l[1]) for l in self.layers_y)
+        return Device(layers_y=layers_y,
                 stack_height=self.stack_height,
-                stack_base=self.stack_base,
                 width=self.width)
-
 
 class Layer:
     """A layer is a set of features uniformly horizontally distributed.
@@ -215,7 +197,7 @@ class Layer:
         # if self.x < bbox.x1 % self.period:
         #     x += self.period
         if isnan(self.period):
-            feats = ( (self.feature.place(x, y),), bbox)
+            feats = ( (self.feature.place(x, y),), bbox, self.text)
             return feats
         fwidth = self.feature.get_width()
         # condition = (x + i*self.period + fwidth) / width < 1 + eps:
@@ -224,7 +206,7 @@ class Layer:
         n = ceil(n)
         #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
         feats = tuple(self.feature.place(x + i*self.period,y) for i in range(n))
-        return (feats, bbox)
+        return (feats, bbox, self.text)
 
     def copy(self):
         return self.__class__(

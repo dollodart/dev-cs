@@ -1,7 +1,8 @@
 from devcs import *
 from colors import devcolors as dc
 from conformal import conformal_coords
-
+from time import time
+t0 = time()
 oxide_thickness = 1
 substrate = Layer(feature=Rectangle(100, 10, color=dc['silicon']),text='substrate')
 fin = Layer(feature=Rectangle(10, 20,color=dc['silicon']), x0 = 45, text='fin')
@@ -18,7 +19,7 @@ fin_oxide = Layer(feature=fin_oxide,x0=45,height=fin.height+oxide_thickness)
 
 d = Device()
 d.stack(substrate)
-d.stack([oxide, fin_oxide, fin])
+d.stack([fin_oxide, oxide, fin])
 s = Schematic()
 s.stack(d)
 s.write('afinfet')
@@ -38,15 +39,17 @@ p = Layer(x0=35, feature=Rectangle(30, 20, color=dc['p-type']))
 
 d2 = Device()
 d2.stack(substrate)
-d2.stack([substrate_oxide, fin, n1, n2, p, fin_contacts])
-d2.stack_base[-1] += oxide_thickness
-#d2.stack([substrate_oxide, fin, n1, n2, p])
-#d2.stack_height += oxide_thickness - 20
-#d2.stack(fin_contacts)
-#d2.stack_height -= oxide_thickness
+#d2.stack([substrate_oxide, fin, n1, n2, p, fin_contacts])
+#d2.layers_y[-1][1] += oxide_thickness 
+#tuple implementation does not allow reassignment
+d2.stack([substrate_oxide, fin, n1, n2, p])
+d2.stack_height += oxide_thickness - 20 #20 is fin height from oxide to oxide
+d2.stack(fin_contacts)
+d2.stack_height -= oxide_thickness
 d2.stack(fin_oxide)
 d2.stack(fin_gate)
 
 s.stack(d2)
 
 s.write('bfinfet')
+print(time() - t0)

@@ -44,9 +44,11 @@ class Bbox():
         return path.rect(self.x1,self.y1,self.x2-self.x1,self.y2-self.y1)
 
 class PolygonFeature():
-    def __init__(self, color=pyxcolor.rgb.black,stroke_color=pyxcolor.rgb.black):
+    def __init__(self, color=pyxcolor.rgb.black,stroke_color=None):
         self.color = color
         self.stroke_color = stroke_color
+        if self.stroke_color is None:
+            self.stroke_color = self.color
 
     def sort_coords(self):
         phis = []
@@ -62,7 +64,7 @@ class PolygonFeature():
         for point in self.coords:
             paths.append(path.lineto(x + point[0], y + point[1]))
         paths.append(path.closepath())
-        return path.path(*paths)
+        return (path.path(*paths), self.color, self.stroke_color)
 
     def get_bbox(self,x,y):
         """Return bbox based off the subclass coordinates.""" 
