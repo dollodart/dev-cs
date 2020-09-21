@@ -94,17 +94,17 @@ class PolygonFeature():
     def copy(self):
         d = self.__dict__
         dims = d['char_dims']
+        dv = {'color':d['color'],'stroke_color':d['stroke_color']}
         return self.__class__(
             *dims,
-            color=d['color'],
-            stroke_color=d['stroke_color'])
+            **dv)
 
 
 class Square(PolygonFeature):
     def __init__(self, a, color=pyxcolor.rgb.black,
                  stroke_color=pyxcolor.rgb.black):
         super().__init__(color=color, stroke_color=stroke_color)
-        self.char_dims = a
+        self.char_dims = (a,)
         self.coords = [(0, 0), (a, 0), (a, a), (0, a)]
 
 
@@ -159,7 +159,7 @@ class EquilateralTriangle(PolygonFeature):
     def __init__(self, a, color=pyxcolor.rgb.black,
                  stroke_color=pyxcolor.rgb.black):
         super().__init__(color=color, stroke_color=stroke_color)
-        self.char_dims = a
+        self.char_dims = (a,)
         self.coords = [(0, 0), (a / 2, a * sqrt(3) / 2), (a, 0)]
 
 
