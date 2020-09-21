@@ -47,8 +47,8 @@ class PolygonFeature():
     def __init__(self, color=pyxcolor.rgb.black,stroke_color=None):
         self.color = color
         self.stroke_color = stroke_color
-        if self.stroke_color is None:
-            self.stroke_color = self.color
+#        if self.stroke_color is None:
+#            self.stroke_color = self.color
 
     def sort_coords(self):
         phis = []

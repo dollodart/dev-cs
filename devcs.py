@@ -76,7 +76,8 @@ class Schematic:
                 for cfea, feapath in enumerate(laypath):
                     feapath, color, stroke_color = feapath
                     laycanv.fill(feapath, [color])
-                    laycanv.stroke(feapath, [stroke_color])
+                    if stroke_color is None:
+                        laycanv.stroke(feapath, [stroke_color])
 
                 if laytext != '':
                     xc = (laybbox.x1+laybbox.x2)/2
