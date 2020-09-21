@@ -252,5 +252,5 @@ class Layer:
                  height=self.height,
                  phase_fraction=self.phase_fraction,
                  x0=self.x0,
-                 feature=self.feature, # features don't need to be copied
+                 feature=self.feature.copy(),
                  text=self.text)
