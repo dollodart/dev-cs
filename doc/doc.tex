@@ -8,19 +8,19 @@
 Many cartoons of semiconductor device cross-sections are sufficiently simple that routines can be made for their construction. This package provides utilities for scripting the creation of semiconductor device cross-sections. 
 
 \section{Coordinate System}
-The global Cartesian coordinate system has origin taken to be the lower left hand corner of the schematic. Cartesian subdomains of the graphics canvas, are rectangular in shape with origin in their lower left hand corner.
+The global Cartesian coordinate system has origin at the upper left hand corner of the schematic. Cartesian subdomains of the graphics canvas, are rectangular in shape with origin in their lower left hand corner.
 
 \section{Description of Objects}\label{sec:oop}
 
 The objects are, in ascending order of class hierarchy (in the sense of which objects contain lower objects, not which objects are subclasses of which objects), features, layers, and devices. The objects are immutable and contain both mutable and immutable attributes. The layer object creates many features provided one or no feature, and the device object modifies layers and the features they contain. Both devices and layers are effectively lists with construction methods and attributes. One can access the desired layers through device items or features through layer items as well as the references (named variables) assigned to them.
 
+Objects each have a place method, which calls the place methods of all objects that are contained. This is done so that any object can have its drawing instructions made and added to the canvas, and so that the cumulative translation from placement of each container is easily calculated.
+
 \subsection{Schematic}
 The schematic is a collection of devices and only is used to layout the partially created devices in sequence for diagrams illustrating semiconductor fabrication processes.
 
 \subsection{Device}
-The device is a collection of layers and has no parameters which directly affect the drawing of features. Rather it maintains a stack height on which to deposit another layer. Importantly layers may be stacked in a list or successively. Those layers which are stacked in a list will be stacked at the same height (overlapping).
-
-One consequence of stacking layers a the same height is is that one cannot have a memoryless stack, since the unstack operation won't know which layers were stacked as a list and which were not. This requires a list of the height at which each layer was stacked and is given variable name \texttt{stack\_base}.
+The device is a collection of layers and has no parameters which directly affect the drawing of features. Rather it maintains a stack height on which to deposit another layer. Layers may be stacked in a list or successively. Those layers which are stacked in a list will be stacked at the same height (overlapping). This means the stack requires a memory since the unstack operation won't know which layers were stacked as a list and which were singly stacked. This memory of stack heights is kept in the same collection object as the layers. 
 
 In addition to a stack which defines the height at which each layer is drawn, there may generally be a different stack desired which defines the drawing precedence. This is in cases where, instead of clipping features, it may be desired to draw over their parts. This is not implemented, but if the entries in the stack are permuted (which is easily achieved by list indexing, though the stack data structure is bad for permuting), it may be achieved.
 
@@ -30,42 +30,26 @@ As defined, a layer has the attributes of phase, period, domain, and feature. Th
 
 $$ \phi = \bmod(c, p) \,.$$
 
-The device width restricts features on some $0 < x < L$. For features within the device width but whose widths extend out of it, clipping can be used. 
+The device width restricts features on some $0 < x < w_d$. For features partially inside the device but whose widths extend out of it clipping is used. One may prefer to specify starting location of a feature, which is related to a phase shift by $x_0 = p \phi$. One may specify either $x_0$ or $\phi$ for the layer. If both $x_0$ and $\phi$ are specified, the program is permissive and assumes they add in contribution.
 
-Since the first feature is in the first period it follows
-
-$$c = \phi p \,. $$
-
-Quite often it is preferred to specify the starting location of a feature, which is related to a phase shift (provided the appropriate domain restriction has been imposed) as
-
-$$ x_0 = p (q + \phi) \,. $$
-
-where $q$ is the integral quotient of $c/p$.
-
-If more than the number of degrees of freedom is specified, the program is permissive and assumes they add in contribution.
+Note the layer is not a collection of features, unlike both the schematic and devices, since it is defined as infinite in the $x$-direction. The place method takes the device width and returns the features within a bounding box.
 
 \subsection{Feature}
 
-A feature may be having a shape and size. The resulting layer height depends on the shape and size of the feature, and shape and size are usually more than one parameter each--only regular polygons are defined by a single string parameter for shape (which is just a map to a number of vertices, hence the name $n$-gon) and a single size parameter (edge length). A feature may have any other aesthetic attributes such as color. For the purpose of layering it must have a lowermost base, though the base may be a point such as in an upside down triangle.
-
-A feature does not have position as an attribute but a place method. This makes it easy to translate the containing objects. 
+A feature has a shape and size. Subclasses of the PolygonFeature construct the coordinates provided shapes and sizes for common shapes. The ConvexPolygon feature allows arbitrary coordinates to be specified provided they form a convex polygon. 
 
 \subsubsection{Polygon Features}
-Polygons under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates. Some routines such as the algorithm for conformal layer may depend on polygons being convex. The object methods 
+Polygons under the constraint that no two points share the same phase angle and the shape is closed around the origin, are easily generally accounted for by ordering the coordinates by polar angle $\theta = \arctan2(x,y)$ and then drawing lines between these ordered coordinates. Some routines such as the algorithm for conformal layer may depend on polygons being convex.
 
 \subsubsection{Non-linear features}
 Non-linear features require vector graphics programs to be efficiently rendered. Standard non-linear shapes such as circles and ellipses are supported by the vector graphics programs. In general, numerical algorithms approximating these as composed of polygons are required. 
 
 \section{Clipping}
-A layer has a defining box (=subdomain). The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The domain of the layer determines the $x$-coordinates of this box, and since layers are stacked, in the layer coordinate system those coordinates below 0 and above the prescribed layer height are also to be clipped. The layer height is taken as the feature height unless explicitly given.
-
-When a layer is shifted because it is stacked onto a device or a device containing it is stacked onto a schematic, there must be a change in the bounding box so that the feature placement won't be clipped. That is, the bounding box coordinates are translated with all other coordinates.
+A layer has a defining box (=subdomain). The coordinates of a layer are defined relative to a lower left hand corner of a layer box for which features outside are clipped. The $x$-limits are a device attribute (width) and the $y$-limits are a layer attribute (height), since the layer is defined as infinite in the $x$ direction. The layer height is taken as the feature height unless explicitly given.
 
 \section{Copying} 
 %the copy methods as written are deep copy methods because they copy all the references recursively, e.g., copying a device copies also the layers and also the features
-Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features (which are also copied). Devices are copied for making schematics which show the creation of a device by a sequence of steps.
-
-When making copying methods, generally it is important to take note of attributes which are changed in the layer after its initialization. The new class instance resulting from copying will not have default values the same as the old class instance which it is copying.
+Each object has a copying method defined for it. Because features are repeated their copying is used in layer creation. For creating conformal layers it is easiest to copy a given layer and apply a transform to all its features (which are also copied in a deepcopy). Devices are copied for making schematics which show the creation of a device by a sequence of steps.
 
 \section{Convenience Functions for Symmetric Placement of Features in Layers}
 
@@ -115,8 +99,6 @@ $$\cos\theta = \frac{ (\mathbf{b}_i - \mathbf{y}_i) \cdot (\mathbf{b}_i' - \math
 
 The coordinate of the conformal layer is given by some constant increment from the perpendicular bisector intercept outward along the perpendicular bisector. Its other coordinate is then given by that increment scaled by the trigonometric factor from the angle bisector intercept outward along the angle bisector. This assumes that the intercept is always interior to the polygon, and that the distance to the vertex is greater than the distance to the perpendicular bisector. The edge should always form a leg of the triangle, the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i$ another leg, and the line segment from $\mathbf{y}_i$ to $\mathbf{b}_i'$ the hypotenuse.
 
-This method draws half-edges of the conformal layer neighboring each vertex.
-
-Note for irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors to create a conformal layer of a fixed thickness. One may desire that the conformal layer appears like a continuous film. Consider $\theta_i$ as the one formed between a perpendicular bisector $e_i$ and an angular bisector $a_i$, and $\theta_{i+1}$ as the one formed between a perpendicular bisector $e_{i+1}$ and an angular bisector $a_i$. The increments from the vertex at $a_i$ are weighted as $\sec\theta$, so that if without loss of generality $\theta_i < \theta_{i+1}$, then $\sec(\theta_i) < \sec(\theta_{i+1}$ and it is the conformal coordinate associated with the perpendicular bisector $e_{i+1}$ that is farther out. Then it is possible to, along the line defined between $\tilde{\mathbf{b}}_i$ and $\tilde{\mathbf{b}}_i'$, where a tilde indicates the conformal coordinate analog, move the coordinate so that it is collinear with the line defined between $\tilde{\mathbf{b}}_{i-1}$ and $\tilde{\mathbf{b}}_i''$ (double prime indicating it is generally different, since the factors will differ). This is equivalent to finding the intercept of the two lines and using that as the common conformal coordinate $\tilde{\mathbf{b}}_i'$ for the angular bisector $a_i$. 
+For irregular shapes the distance along the vertex has to be different for the two neighboring perpendicular bisectors to create a conformal layer of a fixed thickness. One may desire that the conformal layer appears like a continuous film. Consider $\theta_i$ as the one formed between a perpendicular bisector $e_i$ and an angular bisector $a_i$, and $\theta_{i+1}$ as the one formed between a perpendicular bisector $e_{i+1}$ and an angular bisector $a_i$. The increments from the vertex at $a_i$ are weighted as $\sec\theta$, so that if without loss of generality $\theta_i < \theta_{i+1}$, then $\sec(\theta_i) < \sec(\theta_{i+1}$ and it is the conformal coordinate associated with the perpendicular bisector $e_{i+1}$ that is farther out. Then it is possible to, along the line defined between $\tilde{\mathbf{b}}_i$ and $\tilde{\mathbf{b}}_i'$, where a tilde indicates the conformal coordinate analog, move the coordinate so that it is collinear with the line defined between $\tilde{\mathbf{b}}_{i-1}$ and $\tilde{\mathbf{b}}_i''$ (double prime indicating it is generally different, since the factors will differ). This is equivalent to finding the intercept of the two lines and using that as the common conformal coordinate $\tilde{\mathbf{b}}_i'$ for the angular bisector $a_i$. 
 
 \end{document}
