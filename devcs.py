@@ -203,7 +203,7 @@ class Layer:
         fwidth = self.feature.get_width()
         # condition = (x + i*self.period + fwidth) / width < 1 + eps:
         # equivalently, i < ((1+eps)*width - fwidth - x)/self.period    
-        n = ((1+eps)*width - x - fwidth) / self.period 
+        n = ((1+eps)*width - self.x - fwidth) / self.period 
         n = ceil(n) + 1 # plus 1 for clipping
         #print(self.feature, n, width, (x + n*self.period + fwidth)/width)
         feats = tuple(self.feature.place(x + i*self.period,y) for i in range(n))
