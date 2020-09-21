@@ -55,7 +55,7 @@ class Bbox():
 class PolygonFeature():
     """Superclass for all polygon features regular and irregular."""
 
-    def __init__(self, color=pyxcolor.rgb.black, stroke_color=None, coords = []):
+    def __init__(self, color=pyxcolor.rgb.black, stroke_color=None, coords=[]):
         self.color = color
         self.stroke_color = stroke_color
 
@@ -94,7 +94,10 @@ class PolygonFeature():
     def copy(self):
         d = self.__dict__
         dims = d['char_dims']
-        return self.__class__(*dims,color=d['color'],stroke_color=d['stroke_color'])
+        return self.__class__(
+            *dims,
+            color=d['color'],
+            stroke_color=d['stroke_color'])
 
 
 class Square(PolygonFeature):
@@ -211,8 +214,9 @@ class Semicircle():
         """For conformal layers non-linear shapes."""
         magnification = 1 + thickness / self.r
         return Semicircle(2 * magnification * self.r), (1 -
-        #self.x += (1 - magnification) * self.r
-        #self.r *= magnification
+                                                        #self.x += (1 - magnification) * self.r
+                                                        #self.r *= magnification
                                                         magnification) * self.r
+
     def copy(self):
-        return Semicircle(self.r*2., self.color, self.stroke_color)
+        return Semicircle(self.r * 2., self.color, self.stroke_color)

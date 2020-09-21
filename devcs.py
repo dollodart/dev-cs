@@ -1,18 +1,19 @@
+from collections import deque
+from features import *
+from numpy import arctan2, sqrt
 from numpy.linalg import norm
 from numpy import array, roll, sqrt, argmin
 from math import ceil, floor, nan, isnan
 from pyx import path, canvas as pyxcanvas, color as pyxcolor, text, style
 text.set(text.UnicodeEngine)
-from numpy import arctan2, sqrt
-from features import *
-from collections import deque
 
-eps = 0.01 # numerical tolerance
+eps = 0.01  # numerical tolerance
+
 
 class Schematic:
     """Schematic lays out the stack of devices.
-    
-    wrap: 
+
+    wrap:
         type: int
         default: 10000
         description: number of devices to display vertically before beginning on a new column.
@@ -20,7 +21,7 @@ class Schematic:
         type: float
         default: 100.
         description: y-separation of devices in schematic
-    xsep: 
+    xsep:
         type: float
         default: 50.
         description: x-separation of devices in schematic
@@ -40,11 +41,7 @@ class Schematic:
     """
 
     def __init__(self, wrap=10000  # don't use inf/nan since it is floating point and casts integers to floats
-                 , ysep = 100.
-                 , xsep = 50.
-                 , devices_xy = deque()
-                 , current_position = 0
-                 , canvas = None):
+                 , ysep=100., xsep=50., devices_xy=deque(), current_position=0, canvas=None):
         self.wrap = wrap
         self.current_position = current_position
         self.devices_xy = devices_xy
@@ -57,12 +54,12 @@ class Schematic:
         return len(self.devices)
 
     def stack(self, device):
-        yshift = -1*self.ysep
+        yshift = -1 * self.ysep
         xshift = self.xsep
         yshift *= self.current_position % self.wrap
         xshift *= self.current_position // self.wrap
 
-        self.devices_xy.append((device,(xshift,yshift)))
+        self.devices_xy.append((device, (xshift, yshift)))
         self.current_position += 1
 
     def pop(self, count):
@@ -76,12 +73,13 @@ class Schematic:
         return (d[0].place(x + d[1][0], y + d[1][1]) for d in self.devices_xy)
 
     def copy(self):
-        devices_xy = deque( (d[0].copy(),d[1]) for d in self.devices_xy)
-        return self.__class__(devices_xy=devices_xy
-                , xsepmult = self.xsepmult
-                , ysepmult = self.ysepmult
-                , current_position = self.current_position
-                , devices_shift = self.devices_shift)
+        devices_xy = deque((d[0].copy(), d[1]) for d in self.devices_xy)
+        return self.__class__(
+            devices_xy=devices_xy,
+            xsepmult=self.xsepmult,
+            ysepmult=self.ysepmult,
+            current_position=self.current_position,
+            devices_shift=self.devices_shift)
 
     def reverse(self):
         self.devices_xy.reverse()
@@ -102,20 +100,24 @@ class Schematic:
                         laycanv.stroke(feapath, [stroke_color])
 
                 if laytext != '':
-                    xc = (laybbox.x1+laybbox.x2)/2
-                    yc = (laybbox.y1+laybbox.y2)/2
+                    xc = (laybbox.x1 + laybbox.x2) / 2
+                    yc = (laybbox.y1 + laybbox.y2) / 2
                     t = text.Text(laytext, scale=2)
-                    laycanv.text(xc,yc,t)
+                    laycanv.text(xc, yc, t)
 
                 self.canvas.insert(laycanv)
 
         self.canvas.writeEPSfile(filename)
 
     def stroke_line(self, x1, y1, x2, y2):
-        self.canvas.stroke(path.line(x1,y1,x2,y2), [style.linewidth.THICK, pyxcolor.rgb.red])
+        self.canvas.stroke(
+            path.line(
+                x1, y1, x2, y2), [
+                style.linewidth.THICK, pyxcolor.rgb.red])
+
 
 class Device:
-    """A device stacks layers. 
+    """A device stacks layers.
     Stacking adjusts the bounding box and the feature y-positions by a shift of the current stack height.
     If more than one layer is provided in one stack call all of the layers are placed on the same plane.
 
@@ -123,18 +125,18 @@ class Device:
         type: deque
         default: empty deque
         description: deque of 2-tuples, Layer objects at index 0 and y position at index 1
-    stack_height: 
+    stack_height:
         type: float
         default: 0.
         description: the current height of the stack onto which further layers should be stacked
-    width: 
+    width:
         type: float
         default: 100.
         description: the width of the device which determines how layers stacked in the device will be clipped
-    
+
     """
 
-    def __init__(self,layers_y = deque(),stack_height=0.,width=100.): 
+    def __init__(self, layers_y=deque(), stack_height=0., width=100.):
         self.layers_y = layers_y
         self.stack_height = stack_height
         self.width = width
@@ -143,10 +145,10 @@ class Device:
         if not isinstance(layers, list) and not isinstance(layers, tuple):
             layers = (layers,)
 
-        self.layers_y.extend((l,self.stack_height) for l in layers)
+        self.layers_y.extend((l, self.stack_height) for l in layers)
         self.stack_height += max(layer.height for layer in layers)
 
-    def pop(self, count): #count is number of layers
+    def pop(self, count):  # count is number of layers
         p = deque()
         for i in range(count - 1):
             p.append(self.layers_y.pop())
@@ -156,24 +158,25 @@ class Device:
         return p
 
     def place(self, x, y):
-        return (l[0].place(x,y+l[1],self.width) for l in self.layers_y)
+        return (l[0].place(x, y + l[1], self.width) for l in self.layers_y)
 
     def reverse(self):
         self.layers_y.reverse()
 
     def copy(self):
-        layers_y = deque( (l[0].copy(),l[1]) for l in self.layers_y)
+        layers_y = deque((l[0].copy(), l[1]) for l in self.layers_y)
         return Device(layers_y=layers_y,
-                stack_height=self.stack_height,
-                width=self.width)
+                      stack_height=self.stack_height,
+                      width=self.width)
+
 
 class Layer:
     """A layer is a set of features uniformly distributed in the x-direction and with a finite y-dimension.
-    
-    period: 
+
+    period:
         type: float
         default: nan
-        description: The x-direction period of the feature in the layer. 
+        description: The x-direction period of the feature in the layer.
     height:
         type: float
         default: feature height
@@ -186,10 +189,10 @@ class Layer:
         type: float
         default: 0.
         description: A fraction from 0 to 1 to offset the layer in the x-direction (phase shift = 2 pi phase_fraction)
-    feature: 
+    feature:
         type: Feature
         default: Equal parts square trough and crest
-        description: The profile of the layer, what is repeated. 
+        description: The profile of the layer, what is repeated.
     text:
         type: str
         default: ''
@@ -216,7 +219,8 @@ class Layer:
         # default handling
 
         if self.x0 != 0 and self.phase_fraction != 0:
-            print('Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
+            print(
+                'Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
 
         if self.feature is None:
             self.feature = Square(a=self.period / 2.)
@@ -230,27 +234,28 @@ class Layer:
 
     def place(self, x, y, width):
 
-        bbox = Bbox(x, y, x+width, y+self.height)
+        bbox = Bbox(x, y, x + width, y + self.height)
         x = self.x + x
-        # if not domain relative phase shift (unlikely) 
+        # if not domain relative phase shift (unlikely)
         # x = self.x + (bbox.x1 // self.period)*self.period
         # if self.x < bbox.x1 % self.period:
         #     x += self.period
         if isnan(self.period):
-            feats = ( (self.feature.place(x, y),), bbox, self.text)
+            feats = ((self.feature.place(x, y),), bbox, self.text)
             return feats
         fwidth = self.feature.get_width()
-        # condition: i < ((1+eps)*width - fwidth - x)/self.period    
-        n = ((1+eps)*width - self.x - fwidth) / self.period 
-        n = ceil(n) + 1 # plus 1 for clipping
-        feats = tuple(self.feature.place(x + i*self.period,y) for i in range(n))
+        # condition: i < ((1+eps)*width - fwidth - x)/self.period
+        n = ((1 + eps) * width - self.x - fwidth) / self.period
+        n = ceil(n) + 1  # plus 1 for clipping
+        feats = tuple(self.feature.place(x + i * self.period, y)
+                      for i in range(n))
         return (feats, bbox, self.text)
 
     def copy(self):
         return self.__class__(
-                 period=self.period,
-                 height=self.height,
-                 phase_fraction=self.phase_fraction,
-                 x0=self.x0,
-                 feature=self.feature.copy(),
-                 text=self.text)
+            period=self.period,
+            height=self.height,
+            phase_fraction=self.phase_fraction,
+            x0=self.x0,
+            feature=self.feature.copy(),
+            text=self.text)
