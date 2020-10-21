@@ -8,37 +8,37 @@ s = Schematic()
 t0 = time()
 for dwidth in 147, :
     feat = Square(5)
-    fwidth = feat.get_width()
+    fwidth = feat.width
     squ = Layer(period=num2period(3, fwidth, dwidth),
                 feature=feat)
     feat = Rectangle(10, 5)
-    fwidth = feat.get_width()
+    fwidth = feat.width
     rec = Layer(period=num2period(4, fwidth, dwidth),
                 feature=feat)
 
     feat = RightTriangleUpBack(6, 3)
-    fwidth = feat.get_width()
+    fwidth = feat.width
     p, x0 = spacingsreqs(fwidth, 10, dwidth)
     rtub = Layer(period=p,
                  feature=feat,
                  x0=x0)
 
     feat = EquilateralTriangle(5)
-    fwidth = feat.get_width()
+    fwidth = feat.width
     tri = Layer(period=num2period(1, fwidth, dwidth),
                 feature=feat)
 
     feat = ConvexPolygon(
         ((0, 0), (5, 2), (0, 3))
     )
-    fwidth = feat.get_width()
+    fwidth = feat.width
     irr = Layer(period=num2period(6, fwidth, dwidth),
                 feature=feat)
 
     ex = Layer(feature=Rectangle(100, 1))
 
     feat = EquilateralTriangle(5)
-    fwidth = feat.get_width()
+    fwidth = feat.width
     p, x0 = spacingsreqs(fwidth, 10, dwidth)
     trap = Layer(period=p,
                  feature=feat,

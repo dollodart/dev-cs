@@ -219,14 +219,14 @@ class Layer:
         # default handling
 
         if self.x0 != 0 and self.phase_fraction != 0:
-            print(
-                'Both x0 and specified phase fraction are non-zero\nAssuming they both add to the phase shift')
+            print('Both x0 and specified phase fraction are non-zero\n'
+            'Assuming they both add to the phase shift')
 
         if self.feature is None:
             self.feature = Square(a=self.period / 2.)
 
         if self.height is None:
-            self.height = self.feature.get_height()
+            self.height = self.feature.height
         self.x = x0
 
         if not isnan(self.period):
@@ -243,7 +243,7 @@ class Layer:
         if isnan(self.period):
             feats = ((self.feature.place(x, y),), bbox, self.text)
             return feats
-        fwidth = self.feature.get_width()
+        fwidth = self.feature.width
         # condition: i < ((1+eps)*width - fwidth - x)/self.period
         n = ((1 + eps) * width - self.x - fwidth) / self.period
         n = ceil(n) + 1  # plus 1 for clipping

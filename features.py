@@ -83,11 +83,14 @@ class PolygonFeature():
         bbox = Bbox(min(xc) + x, min(yc) + y, max(xc) + x, max(yc) + y)
         return bbox
 
-    def get_width(self):
+    # have these appear to be attributes when they are actually calculated by a getter function
+    @property
+    def width(self):
         xc, _ = zip(*self.coords)
         return max(xc) - min(xc)
 
-    def get_height(self):
+    @property
+    def height(self):
         _, yc = zip(*self.coords)
         return max(yc) - min(yc)
 
